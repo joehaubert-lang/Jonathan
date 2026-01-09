@@ -1,0 +1,8 @@
+{
+  "name": "PeakFit - Gestão de Consultoria Fitness",
+  "description": "Uma plataforma completa para personal trainers gerenciarem alunos, treinos, avaliações físicas e pagamentos, com inteligência artificial para prescrição de exercícios.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
