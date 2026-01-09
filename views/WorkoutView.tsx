@@ -1,8 +1,36 @@
 
-import React, { useState } from 'react';
-/* Added CheckCircle2 to the imports */
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Play, Trash2, Bookmark, Search, Clock, PlusCircle, Save, Dumbbell, RotateCcw, User, X, ChevronLeft, AlertCircle, List, Send, PlayCircle, Pencil, Link as LinkIcon, Video, Calendar, CheckCircle2 } from 'lucide-react';
 import { generateWorkoutSplit } from '../services/geminiService';
+
+// Biblioteca de Vídeos Padrão da Plataforma (IDs Reais do YouTube para demonstração)
+const EXERCISE_VIDEO_LIBRARY: Record<string, string> = {
+  'Supino Reto': 'https://www.youtube.com/watch?v=sqOw2Y6uDWQ',
+  'Supino Inclinado': 'https://www.youtube.com/watch?v=Z169n7z6J6g',
+  'Crucifixo': 'https://www.youtube.com/watch?v=3u_S9Y_q9s0',
+  'Cross Over': 'https://www.youtube.com/watch?v=H75ImvW9D-A',
+  'Flexão de Braços': 'https://www.youtube.com/watch?v=pDLPmX7_Yms',
+  'Puxada Alta': 'https://www.youtube.com/watch?v=0pL40fA5o0Q',
+  'Remada Curvada': 'https://www.youtube.com/watch?v=NqpWZuNInS0',
+  'Remada Baixa': 'https://www.youtube.com/watch?v=vV_XOf-t9uA',
+  'Pull Over': 'https://www.youtube.com/watch?v=FK_K9O7v3zU',
+  'Levantamento Terra': 'https://www.youtube.com/watch?v=XzL9pL1W0m4',
+  'Agachamento Livre': 'https://www.youtube.com/watch?v=U3HlEF_E9fo',
+  'Leg Press 45': 'https://www.youtube.com/watch?v=q6fG3V3Xm-c',
+  'Extensora': 'https://www.youtube.com/watch?v=L5o3hI0sS-I',
+  'Flexora': 'https://www.youtube.com/watch?v=pWnK5v_5vE8',
+  'Afundo': 'https://www.youtube.com/watch?v=QOVaHwm-Q6U',
+  'Elevação Pélvica': 'https://www.youtube.com/watch?v=aG935FqY_Lg',
+  'Desenvolvimento': 'https://www.youtube.com/watch?v=0W8o_T9wX6w',
+  'Elevação Lateral': 'https://www.youtube.com/watch?v=WJm9zA2NY9w',
+  'Elevação Frontal': 'https://www.youtube.com/watch?v=-t7fuZ0KhDA',
+  'Crucifixo Invertido': 'https://www.youtube.com/watch?v=9_XWk8G6U_U',
+  'Rosca Direta': 'https://www.youtube.com/watch?v=LY1V6HD_v6Q',
+  'Rosca Martelo': 'https://www.youtube.com/watch?v=CFBzqfVuqO0',
+  'Tríceps Pulley': 'https://www.youtube.com/watch?v=pD1Y_E-Fm2k',
+  'Tríceps Testa': 'https://www.youtube.com/watch?v=9S_X6UeE6fE',
+  'Tríceps Corda': 'https://www.youtube.com/watch?v=XzL9pL1W0m4',
+};
 
 const WEEK_DAYS = [
   { id: 'seg', label: 'Seg' },
@@ -26,14 +54,12 @@ const WorkoutView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'ai_creator' | 'manual_builder' | 'library'>('ai_creator');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedWorkouts, setGeneratedWorkouts] = useState<any[]>([]);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [newWorkoutName, setNewWorkoutName] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<any | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editWorkout, setEditWorkout] = useState<any | null>(null);
-  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
   
   const [savedWorkouts, setSavedWorkouts] = useState<any[]>([
     {
@@ -46,7 +72,7 @@ const WorkoutView: React.FC = () => {
       source: 'ai',
       exercises: [
         { name: 'Agachamento Livre', sets: 4, reps: '8', weight: '80kg', rest: '90s', muscleGroup: 'Pernas', videoUrl: 'https://www.youtube.com/watch?v=U3HlEF_E9fo' },
-        { name: 'Supino Reto', sets: 4, reps: '8', weight: '60kg', rest: '90s', muscleGroup: 'Peito', videoUrl: 'https://www.youtube.com/watch?v=rT7Dgcr0yJK8' },
+        { name: 'Supino Reto', sets: 4, reps: '8', weight: '60kg', rest: '90s', muscleGroup: 'Peito', videoUrl: 'https://www.youtube.com/watch?v=sqOw2Y6uDWQ' },
       ]
     }
   ]);
@@ -59,7 +85,7 @@ const WorkoutView: React.FC = () => {
 
   const [manualWorkout, setManualWorkout] = useState({
     name: '',
-    focus: '',
+    focus: 'Geral',
     level: 'Intermediário',
     exercises: [{ name: '', sets: 3, reps: '12', weight: '', rest: '60s', videoUrl: '', muscleGroup: 'Geral' }]
   });
@@ -90,7 +116,17 @@ const WorkoutView: React.FC = () => {
     setIsGenerating(true);
     try {
       const result = await generateWorkoutSplit(form.goal, form.level, form.selectedDays.length);
-      setGeneratedWorkouts(result);
+      
+      const enrichedResult = result.map((dayPlan: any) => ({
+        ...dayPlan,
+        exercises: dayPlan.exercises.map((ex: any) => ({
+          ...ex,
+          weight: '', // IA geralmente não prescreve carga inicial, deixamos em branco
+          videoUrl: ex.videoUrl || EXERCISE_VIDEO_LIBRARY[ex.name] || ''
+        }))
+      }));
+
+      setGeneratedWorkouts(enrichedResult);
     } catch (error) {
       console.error("Erro ao gerar treino:", error);
     } finally {
@@ -111,6 +147,12 @@ const WorkoutView: React.FC = () => {
     setSelectedWorkout(updatedWorkout);
     setIsEditing(false);
     setEditWorkout(null);
+  };
+
+  const handleDeleteWorkout = () => {
+    if (!workoutToDelete) return;
+    setSavedWorkouts(prev => prev.filter(w => w.id !== workoutToDelete));
+    setWorkoutToDelete(null);
   };
 
   const filteredWorkouts = savedWorkouts.filter(w => 
@@ -146,6 +188,41 @@ const WorkoutView: React.FC = () => {
               <button onClick={() => setActiveVideoUrl(null)} className="px-6 py-2 bg-white/10 rounded-xl">Voltar</button>
             </div>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  const DeleteModal = () => {
+    if (!workoutToDelete) return null;
+    const workout = savedWorkouts.find(w => w.id === workoutToDelete);
+    
+    return (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="h-14 w-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center">
+              <AlertCircle size={32} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Excluir Treino?</h3>
+              <p className="text-sm text-slate-500 mt-1">Você está prestes a remover o treino <span className="font-bold text-slate-700">"{workout?.name}"</span>. Esta ação não pode ser desfeita.</p>
+            </div>
+            <div className="flex gap-3 w-full mt-4">
+              <button 
+                onClick={() => setWorkoutToDelete(null)} 
+                className="flex-1 py-3 text-sm font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleDeleteWorkout} 
+                className="flex-1 py-3 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl shadow-lg shadow-red-100 transition-all"
+              >
+                Sim, Excluir
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -190,49 +267,87 @@ const WorkoutView: React.FC = () => {
             <div className="grid gap-3">
               {currentData.exercises.map((ex: any, i: number) => (
                 <div key={i} className={`flex flex-col gap-4 rounded-2xl border ${isEditing ? 'border-indigo-100 bg-indigo-50/20' : 'border-slate-100 bg-white'} p-4 shadow-sm`}>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className="h-10 w-10 shrink-0 rounded-xl bg-slate-50 flex items-center justify-center text-xs font-black text-indigo-600 border border-slate-100">{i + 1}</div>
                       <div className="min-w-0 flex-1">
                         {isEditing ? (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <input className="font-bold text-slate-800 text-sm outline-none w-full bg-white border-b border-indigo-200" value={ex.name} onChange={(e) => {
                               const updated = [...editWorkout.exercises];
                               updated[i].name = e.target.value;
+                              if (EXERCISE_VIDEO_LIBRARY[e.target.value]) {
+                                updated[i].videoUrl = EXERCISE_VIDEO_LIBRARY[e.target.value];
+                              }
                               setEditWorkout({...editWorkout, exercises: updated});
                             }} />
-                            <div className="flex items-center gap-2">
-                              <LinkIcon size={12} className="text-indigo-400" />
-                              <input className="text-[10px] text-indigo-500 font-bold outline-none w-full bg-white border-b border-indigo-100" placeholder="Link YouTube" value={ex.videoUrl || ''} onChange={(e) => {
-                                const updated = [...editWorkout.exercises];
-                                updated[i].videoUrl = e.target.value;
-                                setEditWorkout({...editWorkout, exercises: updated});
-                              }} />
+                            
+                            <div className="grid grid-cols-4 gap-2">
+                               <div>
+                                 <label className="block text-[8px] font-black text-slate-400 uppercase mb-0.5">Séries</label>
+                                 <input type="number" className="w-full text-xs font-bold p-1 border rounded bg-white" value={ex.sets} onChange={(e) => {
+                                   const updated = [...editWorkout.exercises];
+                                   updated[i].sets = parseInt(e.target.value);
+                                   setEditWorkout({...editWorkout, exercises: updated});
+                                 }} />
+                               </div>
+                               <div>
+                                 <label className="block text-[8px] font-black text-slate-400 uppercase mb-0.5">Reps</label>
+                                 <input type="text" className="w-full text-xs font-bold p-1 border rounded bg-white" value={ex.reps} onChange={(e) => {
+                                   const updated = [...editWorkout.exercises];
+                                   updated[i].reps = e.target.value;
+                                   setEditWorkout({...editWorkout, exercises: updated});
+                                 }} />
+                               </div>
+                               <div>
+                                 <label className="block text-[8px] font-black text-slate-400 uppercase mb-0.5">Peso</label>
+                                 <input type="text" className="w-full text-xs font-bold p-1 border rounded bg-white" value={ex.weight} onChange={(e) => {
+                                   const updated = [...editWorkout.exercises];
+                                   updated[i].weight = e.target.value;
+                                   setEditWorkout({...editWorkout, exercises: updated});
+                                 }} />
+                               </div>
+                               <div>
+                                 <label className="block text-[8px] font-black text-slate-400 uppercase mb-0.5">Rest</label>
+                                 <input type="text" className="w-full text-xs font-bold p-1 border rounded bg-white" value={ex.rest} onChange={(e) => {
+                                   const updated = [...editWorkout.exercises];
+                                   updated[i].rest = e.target.value;
+                                   setEditWorkout({...editWorkout, exercises: updated});
+                                 }} />
+                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-slate-800 text-sm truncate">{ex.name}</h4>
-                            {ex.videoUrl && (
-                              <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all">
-                                <PlayCircle size={14} /> <span className="text-[10px] font-black uppercase">Vídeo</span>
-                              </button>
-                            )}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-slate-800 text-sm truncate">{ex.name}</h4>
+                              {ex.videoUrl && (
+                                <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="text-indigo-600 hover:scale-110 transition-transform">
+                                  <PlayCircle size={16} />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <span className="text-[10px] font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-full">{ex.muscleGroup}</span>
+                               {ex.weight && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Dumbbell size={10} /> {ex.weight}</span>}
+                               {ex.rest && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Clock size={10} /> {ex.rest}</span>}
+                            </div>
                           </div>
                         )}
-                        {!isEditing && <p className="text-[10px] text-slate-400 font-black uppercase">{ex.muscleGroup}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-6 justify-between sm:justify-end border-t sm:border-t-0 pt-3 border-slate-50">
-                      <div className="text-right">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">Séries x Rep</p>
-                        <p className="text-sm font-black text-slate-800">{ex.sets} x {ex.reps}</p>
-                      </div>
+                      {!isEditing && (
+                        <div className="text-right">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sets x Reps</p>
+                          <p className="text-sm font-black text-slate-800">{ex.sets} x {ex.reps}</p>
+                        </div>
+                      )}
                       {isEditing && (
                         <button onClick={() => {
                           const updated = editWorkout.exercises.filter((_: any, idx: number) => idx !== i);
                           setEditWorkout({...editWorkout, exercises: updated});
-                        }} className="text-red-400 p-1"><Trash2 size={16} /></button>
+                        }} className="text-red-400 p-2 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
                       )}
                     </div>
                   </div>
@@ -241,13 +356,14 @@ const WorkoutView: React.FC = () => {
             </div>
           </div>
           <div className="lg:col-span-4">
-             <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-2xl">
+             <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-2xl sticky top-24">
                <h4 className="font-black text-sm mb-6 flex items-center gap-2 uppercase tracking-widest text-indigo-400"><Clock size={16}/> Resumo</h4>
                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-[10px] font-bold text-slate-400 uppercase">Foco</span><span className="text-xs font-black">{currentData.focus}</span></div>
-                  <div className="flex justify-between items-center py-2"><span className="text-[10px] font-bold text-slate-400 uppercase">Itens</span><span className="text-xs font-black">{currentData.exercises.length}</span></div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-[10px] font-bold text-slate-400 uppercase">Objetivo</span><span className="text-xs font-black">{currentData.focus}</span></div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-[10px] font-bold text-slate-400 uppercase">Frequência</span><span className="text-xs font-black">{currentData.source === 'ai' ? 'Variada' : 'Manual'}</span></div>
+                  <div className="flex justify-between items-center py-2"><span className="text-[10px] font-bold text-slate-400 uppercase">Volume Total</span><span className="text-xs font-black">{currentData.exercises.length} Exercícios</span></div>
                </div>
-               {!isEditing && <button className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2"><Send size={18} /> Compartilhar</button>}
+               {!isEditing && <button className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20"><Send size={18} /> Prescrever ao Aluno</button>}
              </div>
           </div>
         </div>
@@ -258,6 +374,7 @@ const WorkoutView: React.FC = () => {
   return (
     <div className="space-y-6">
       <VideoModal />
+      <DeleteModal />
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div><h2 className="text-2xl font-bold text-slate-800">Treinos</h2><p className="text-slate-500">Inteligência Artificial na sua prescrição.</p></div>
         <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
@@ -365,56 +482,153 @@ const WorkoutView: React.FC = () => {
       )}
 
       {activeSubTab === 'manual_builder' && (
-        <div className="max-w-3xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
+        <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4">
            <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-             <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 text-sm uppercase tracking-widest"><PlusCircle size={20} className="text-indigo-600"/> Prescrição Manual</h3>
-             <input type="text" placeholder="Nome do Treino" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 mb-6 font-bold" value={manualWorkout.name} onChange={(e) => setManualWorkout({...manualWorkout, name: e.target.value})} />
+             <div className="flex items-center justify-between mb-8">
+               <h3 className="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-widest"><PlusCircle size={20} className="text-indigo-600"/> Prescrição Manual</h3>
+               <button onClick={() => setManualWorkout({...manualWorkout, exercises: [{ name: '', sets: 3, reps: '12', weight: '', rest: '60s', videoUrl: '', muscleGroup: 'Geral' }]})} className="text-[10px] font-bold text-slate-400 hover:text-red-500 flex items-center gap-1 transition-all"><RotateCcw size={12}/> Limpar Tudo</button>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Título do Treino</label>
+                  <input type="text" placeholder="Ex: Hipertrofia A - Peito/Tríceps" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all" value={manualWorkout.name} onChange={(e) => setManualWorkout({...manualWorkout, name: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Foco / Objetivo</label>
+                  <input type="text" placeholder="Ex: Força Máxima" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-bold outline-none focus:ring-2 focus:ring-indigo-100 transition-all" value={manualWorkout.focus} onChange={(e) => setManualWorkout({...manualWorkout, focus: e.target.value})} />
+                </div>
+             </div>
+
              <div className="space-y-4">
                {manualWorkout.exercises.map((ex, i) => (
-                 <div key={i} className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-3">
-                   <div className="flex gap-4">
-                     <select className="flex-1 bg-transparent font-bold text-sm outline-none border-b border-slate-200" value={ex.name} onChange={(e) => {
-                        const updated = [...manualWorkout.exercises]; updated[i].name = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
-                      }}>
-                        <option value="">Selecione...</option>
-                        {PREDEFINED_EXERCISES.flatMap(c => c.items).map(item => <option key={item} value={item}>{item}</option>)}
-                      </select>
-                     <button onClick={() => {
-                        const updated = manualWorkout.exercises.filter((_, idx) => idx !== i); setManualWorkout({...manualWorkout, exercises: updated});
-                     }} className="text-red-400"><Trash2 size={16}/></button>
+                 <div key={i} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-4 relative group">
+                   <div className="flex flex-col md:flex-row gap-4">
+                     <div className="flex-1">
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Exercício</label>
+                       <select className="w-full bg-white rounded-xl border border-slate-200 px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-100" value={ex.name} onChange={(e) => {
+                          const updated = [...manualWorkout.exercises]; 
+                          const selectedName = e.target.value;
+                          updated[i].name = selectedName;
+                          if (EXERCISE_VIDEO_LIBRARY[selectedName]) {
+                            updated[i].videoUrl = EXERCISE_VIDEO_LIBRARY[selectedName];
+                          }
+                          setManualWorkout({...manualWorkout, exercises: updated});
+                        }}>
+                          <option value="">Selecione um exercício...</option>
+                          {PREDEFINED_EXERCISES.map(cat => (
+                            <optgroup key={cat.category} label={cat.category}>
+                              {cat.items.map(item => <option key={item} value={item}>{item}</option>)}
+                            </optgroup>
+                          ))}
+                        </select>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:w-[400px]">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Séries</label>
+                          <input type="number" className="w-full bg-white rounded-xl border border-slate-200 px-3 py-3 font-bold text-sm" value={ex.sets} onChange={(e) => {
+                             const updated = [...manualWorkout.exercises]; updated[i].sets = parseInt(e.target.value) || 0; setManualWorkout({...manualWorkout, exercises: updated});
+                          }} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Reps</label>
+                          <input type="text" className="w-full bg-white rounded-xl border border-slate-200 px-3 py-3 font-bold text-sm" value={ex.reps} onChange={(e) => {
+                             const updated = [...manualWorkout.exercises]; updated[i].reps = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
+                          }} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Peso (kg)</label>
+                          <input type="text" className="w-full bg-white rounded-xl border border-slate-200 px-3 py-3 font-bold text-sm" placeholder="Opcional" value={ex.weight} onChange={(e) => {
+                             const updated = [...manualWorkout.exercises]; updated[i].weight = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
+                          }} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Descanso</label>
+                          <input type="text" className="w-full bg-white rounded-xl border border-slate-200 px-3 py-3 font-bold text-sm" value={ex.rest} onChange={(e) => {
+                             const updated = [...manualWorkout.exercises]; updated[i].rest = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
+                          }} />
+                        </div>
+                     </div>
                    </div>
-                   <div className="flex items-center gap-3">
-                      <LinkIcon size={14} className="text-indigo-400 shrink-0" />
-                      <input type="text" placeholder="URL YouTube para Popup" className="flex-1 bg-transparent text-xs font-medium border-b border-slate-200 outline-none" value={ex.videoUrl || ''} onChange={(e) => {
-                          const updated = [...manualWorkout.exercises]; updated[i].videoUrl = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
-                      }} />
+
+                   <div className="flex items-center justify-between gap-4 pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-3 flex-1">
+                        <LinkIcon size={14} className="text-indigo-400 shrink-0" />
+                        <input type="text" placeholder="URL do Vídeo Youtube (Vazio usa o padrão se existir)" className="flex-1 bg-transparent text-xs font-medium border-b border-slate-200 outline-none focus:border-indigo-400 transition-all" value={ex.videoUrl || ''} onChange={(e) => {
+                            const updated = [...manualWorkout.exercises]; updated[i].videoUrl = e.target.value; setManualWorkout({...manualWorkout, exercises: updated});
+                        }} />
+                      </div>
+                      <button onClick={() => {
+                          const updated = manualWorkout.exercises.filter((_, idx) => idx !== i); setManualWorkout({...manualWorkout, exercises: updated});
+                       }} className="p-2 text-slate-300 hover:text-red-500 transition-all"><Trash2 size={16}/></button>
                    </div>
                  </div>
                ))}
-               <button onClick={() => setManualWorkout({...manualWorkout, exercises: [...manualWorkout.exercises, { name: '', sets: 3, reps: '12', weight: '', rest: '60s', muscleGroup: 'Geral', videoUrl: '' }]})} className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-bold">+ Novo Exercício</button>
+               
+               <button onClick={() => setManualWorkout({...manualWorkout, exercises: [...manualWorkout.exercises, { name: '', sets: 3, reps: '12', weight: '', rest: '60s', muscleGroup: 'Geral', videoUrl: '' }]})} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                 <PlusCircle size={16} /> Adicionar Novo Exercício
+               </button>
              </div>
+             
              <button onClick={() => {
-                const newSaved = { id: Date.now().toString(), name: manualWorkout.name, focus: 'Manual', exerciseCount: manualWorkout.exercises.length, date: 'Hoje', source: 'manual', exercises: manualWorkout.exercises };
+                const newSaved = { id: Date.now().toString(), name: manualWorkout.name || 'Treino Manual', focus: manualWorkout.focus, exerciseCount: manualWorkout.exercises.length, date: new Date().toLocaleDateString('pt-BR'), source: 'manual', exercises: manualWorkout.exercises };
                 setSavedWorkouts([newSaved, ...savedWorkouts]);
                 setActiveSubTab('library');
-             }} className="w-full mt-8 py-4 bg-indigo-600 text-white rounded-xl font-black shadow-lg">Salvar Treino</button>
+                setManualWorkout({ name: '', focus: 'Geral', level: 'Intermediário', exercises: [{ name: '', sets: 3, reps: '12', weight: '', rest: '60s', videoUrl: '', muscleGroup: 'Geral' }] });
+             }} className="w-full mt-8 py-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black shadow-2xl hover:opacity-90 transition-all active:scale-95 flex items-center justify-center gap-2">
+               <Save size={20} /> Salvar e Finalizar Prescrição
+             </button>
            </div>
         </div>
       )}
 
       {activeSubTab === 'library' && (
         <div className="space-y-6 animate-in fade-in duration-500">
-          <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Buscar na biblioteca..." className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+          <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Buscar na biblioteca..." className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-indigo-100 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredWorkouts.map((workout) => (
-              <div key={workout.id} onClick={() => setSelectedWorkout(workout)} className="group rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:border-indigo-300 transition-all cursor-pointer min-h-[160px] flex flex-col">
-                <div className="flex items-center gap-2 mb-2"><span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">{workout.source === 'ai' ? 'IA' : 'Manual'}</span></div>
-                <h4 className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600">{workout.name}</h4>
-                <p className="text-xs text-slate-400 font-medium mb-4">{workout.focus}</p>
-                <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between"><span className="text-sm font-black text-indigo-600">{workout.exerciseCount} exercícios</span><PlayCircle size={18} className="text-slate-300 group-hover:text-indigo-600" /></div>
+              <div 
+                key={workout.id} 
+                className="group relative rounded-2xl border border-slate-100 bg-white shadow-sm hover:border-indigo-300 transition-all min-h-[160px] flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+              >
+                {/* Delete Button */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setWorkoutToDelete(workout.id); }}
+                  className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 bg-slate-50 hover:bg-red-50 rounded-xl transition-all z-10 md:opacity-0 md:group-hover:opacity-100"
+                >
+                  <Trash2 size={16} />
+                </button>
+
+                <div 
+                  onClick={() => setSelectedWorkout(workout)}
+                  className="p-5 flex-1 flex flex-col cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${workout.source === 'ai' ? 'bg-violet-100 text-violet-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                      {workout.source === 'ai' ? 'Gerado por IA' : 'Manual'}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-slate-800 mb-1 group-hover:text-indigo-600 transition-colors pr-8">
+                    {workout.name}
+                  </h4>
+                  <p className="text-xs text-slate-400 font-medium mb-4">
+                    {workout.focus}
+                  </p>
+                  <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                    <span className="text-sm font-black text-indigo-600">{workout.exerciseCount} exercícios</span>
+                    <PlayCircle size={18} className="text-slate-300 group-hover:text-indigo-600 transition-colors" />
+                  </div>
+                </div>
               </div>
             ))}
           </div>
+          {filteredWorkouts.length === 0 && (
+            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+               <Dumbbell size={48} className="mx-auto text-slate-200 mb-4" />
+               <p className="text-slate-400 font-bold">Nenhum treino encontrado na biblioteca.</p>
+            </div>
+          )}
         </div>
       )}
     </div>
