@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Search, UserPlus, Filter, MoreVertical, MessageCircle, FileText } from 'lucide-react';
 import { Student } from '../types';
+import AddStudentModal from '../components/AddStudentModal';
 
 const mockStudents: Student[] = [
   { id: '1', name: 'Gabriel Silva', email: 'gabriel@email.com', photo: 'https://picsum.photos/id/1/100/100', status: 'active', lastActivity: 'Hoje, 10:30', goal: 'Hipertrofia', plan: 'Trimestral' },
@@ -13,19 +14,25 @@ const mockStudents: Student[] = [
 
 const StudentsView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const filteredStudents = mockStudents.filter(s => 
+  const filteredStudents = mockStudents.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
+      <AddStudentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Seus Alunos</h2>
           <p className="text-slate-500">Gerencie sua base de {mockStudents.length} alunos no PeakFit.</p>
         </div>
-        <button className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
+        >
           <UserPlus size={18} /> Novo Aluno
         </button>
       </div>
@@ -34,8 +41,8 @@ const StudentsView: React.FC = () => {
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Pesquisar por nome ou e-mail..."
             className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
             value={searchTerm}
@@ -54,10 +61,9 @@ const StudentsView: React.FC = () => {
             <div className="flex flex-1 items-center gap-4">
               <div className="relative">
                 <img src={student.photo} alt={student.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100" />
-                <span className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white ${
-                  student.status === 'active' ? 'bg-emerald-500' : 
+                <span className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white ${student.status === 'active' ? 'bg-emerald-500' :
                   student.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300'
-                }`}></span>
+                  }`}></span>
               </div>
               <div>
                 <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{student.name}</h4>

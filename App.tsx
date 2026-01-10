@@ -1,32 +1,21 @@
 
-import React, { useState, useEffect } from 'react';
-import Layout from './components/Layout';
-import DashboardView from './views/DashboardView';
-import StudentsView from './views/StudentsView';
-import WorkoutView from './views/WorkoutView';
-import EvaluationsView from './views/EvaluationsView';
-import FinancialView from './views/FinancialView';
+import React, { useState } from 'react';
+import LandingPage from './views/LandingPage';
+import TrainerArea from './views/trainer/TrainerArea';
+import StudentArea from './views/student/StudentArea';
 
 const App: React.FC = () => {
-  console.log('App component rendering');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentView, setCurrentView] = useState<'landing' | 'trainer' | 'student'>('landing');
 
-  const renderView = () => {
-    switch (activeTab) {
-      case 'dashboard': return <DashboardView />;
-      case 'students': return <StudentsView />;
-      case 'workouts': return <WorkoutView />;
-      case 'evaluations': return <EvaluationsView />;
-      case 'financial': return <FinancialView />;
-      default: return <DashboardView />;
-    }
-  };
-
-  return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderView()}
-    </Layout>
-  );
+  // Simple "Router"
+  switch (currentView) {
+    case 'trainer':
+      return <TrainerArea />;
+    case 'student':
+      return <StudentArea />;
+    default:
+      return <LandingPage onSelectRole={setCurrentView} />;
+  }
 };
 
 export default App;
