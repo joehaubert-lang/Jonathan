@@ -27,7 +27,7 @@ const FinancialView: React.FC = () => {
 
   const renderCalendar = () => {
     const daysInMonth = 31;
-    const startDay = 5; 
+    const startDay = 5;
     const days = [];
     for (let i = 0; i < startDay; i++) {
       days.push(<div key={`empty-${i}`} className="h-24 border-b border-r border-slate-50 bg-slate-50/20"></div>);
@@ -44,13 +44,12 @@ const FinancialView: React.FC = () => {
           </div>
           <div className="mt-1 space-y-1">
             {dayTransactions.map((t, idx) => (
-              <div 
-                key={idx} 
-                className={`truncate rounded px-1.5 py-0.5 text-[9px] font-bold border ${
-                  t.status === 'Paga' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+              <div
+                key={idx}
+                className={`truncate rounded px-1.5 py-0.5 text-[9px] font-bold border ${t.status === 'Paga'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                     : 'bg-orange-50 text-orange-700 border-orange-100 animate-pulse'
-                }`}
+                  }`}
               >
                 {t.student.split(' ')[0]} - {t.amount}
               </div>
@@ -92,7 +91,7 @@ const FinancialView: React.FC = () => {
               <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="flex items-center gap-3">
@@ -150,8 +149,8 @@ const FinancialView: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-             {viewMode === 'calendar' && <span className="text-xs font-bold text-slate-600 uppercase tracking-widest mr-4">Março 2024</span>}
-             <button className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"><Filter size={16} /> Filtros</button>
+            {viewMode === 'calendar' && <span className="text-xs font-bold text-slate-600 uppercase tracking-widest mr-4">Março 2024</span>}
+            <button className="flex items-center gap-2 text-xs font-bold text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"><Filter size={16} /> Filtros</button>
           </div>
         </div>
 
@@ -171,9 +170,8 @@ const FinancialView: React.FC = () => {
                 {transactions.map((tx, i) => (
                   <tr key={i} className="hover:bg-indigo-50/10 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${
-                        tx.status === 'Paga' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
-                      }`}>
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-tighter ${tx.status === 'Paga' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
                         {tx.status}
                       </span>
                     </td>
@@ -187,7 +185,7 @@ const FinancialView: React.FC = () => {
                     <td className="px-6 py-4 text-slate-500 font-medium">{tx.date.split('-').reverse().join('/')}</td>
                     <td className="px-6 py-4 text-right">
                       {tx.status === 'Pendente' && (
-                        <button 
+                        <button
                           onClick={() => handleGenerateAI(tx.student, tx.amount, tx.date)}
                           disabled={isGeneratingMsg === tx.student}
                           className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all relative overflow-hidden group/btn"
@@ -229,7 +227,7 @@ const FinancialView: React.FC = () => {
                 <div className="bg-white/20 p-2 rounded-lg">
                   <Sparkles size={20} />
                 </div>
-                <h3 className="font-bold text-lg">Mensagem da PeakFit AI</h3>
+                <h3 className="font-bold text-lg">Mensagem da FitFlow AI</h3>
               </div>
               <p className="text-indigo-100 text-sm">Pronto para enviar via WhatsApp para seu aluno!</p>
             </div>
@@ -238,13 +236,13 @@ const FinancialView: React.FC = () => {
                 "{aiMessage}"
               </div>
               <div className="mt-6 flex gap-3">
-                <button 
+                <button
                   onClick={() => setAiMessage(null)}
                   className="flex-1 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={() => setAiMessage(null)}
                   className="flex-1 py-3 text-sm font-bold bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all"
                 >

@@ -27,7 +27,7 @@ const StudentsView: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Seus Alunos</h2>
-          <p className="text-slate-500">Gerencie sua base de {mockStudents.length} alunos no PeakFit.</p>
+          <p className="text-slate-500">Gerencie sua base de {mockStudents.length} alunos no FitFlow.</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -57,38 +57,43 @@ const StudentsView: React.FC = () => {
       {/* Student List */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
         {filteredStudents.map((student) => (
-          <div key={student.id} className="group flex flex-col items-start gap-4 rounded-2xl border border-slate-100 bg-white p-4 transition-all hover:border-indigo-200 hover:shadow-md lg:flex-row lg:items-center">
-            <div className="flex flex-1 items-center gap-4">
-              <div className="relative">
-                <img src={student.photo} alt={student.name} className="h-14 w-14 rounded-2xl object-cover border border-slate-100" />
-                <span className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white ${student.status === 'active' ? 'bg-emerald-500' :
+          <div key={student.id} className="group flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 transition-all hover:border-indigo-200 hover:shadow-md">
+
+            {/* Left: User Info */}
+            <div className="flex flex-1 items-start gap-4">
+              <div className="relative shrink-0">
+                <img src={student.photo} alt={student.name} className="h-12 w-12 rounded-2xl object-cover border border-slate-100" />
+                <span className={`absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${student.status === 'active' ? 'bg-emerald-500' :
                   student.status === 'pending' ? 'bg-orange-500' : 'bg-slate-300'
                   }`}></span>
               </div>
-              <div>
-                <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{student.name}</h4>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <span className="font-semibold text-slate-600 uppercase tracking-wider">{student.goal}</span>
-                  <span>•</span>
-                  <span>Atividade: {student.lastActivity}</span>
+              <div className="space-y-0.5 pt-0.5">
+                <h4 className="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{student.name}</h4>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">{student.goal}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">Atividade: {student.lastActivity}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex w-full items-center justify-between gap-4 lg:w-auto">
-              <div className="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 shadow-sm">
-                <span className="text-xs font-bold text-indigo-700">{student.plan}</span>
-              </div>
+            {/* Right: Actions & Plan */}
+            <div className="flex flex-col items-end gap-2">
               <div className="flex gap-2">
-                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all">
-                  <MessageCircle size={20} />
+                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all">
+                  <MessageCircle size={16} />
                 </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
-                  <FileText size={20} />
+                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
+                  <FileText size={16} />
                 </button>
-                <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
-                  <MoreVertical size={20} />
+                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
+                  <MoreVertical size={16} />
                 </button>
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1 shadow-sm border border-slate-100">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wide">{student.plan}</span>
               </div>
             </div>
           </div>

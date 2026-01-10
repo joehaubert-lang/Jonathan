@@ -18,7 +18,7 @@ const DashboardView: React.FC = () => {
     <div className="space-y-6">
       <header>
         <h2 className="text-2xl font-bold text-slate-800">Olá, Coach Lucas! 👋</h2>
-        <p className="text-slate-500">Confira o resumo da sua consultoria hoje no PeakFit.</p>
+        <p className="text-slate-500">Bem-vindo ao painel do treinador FitFlow.</p>
       </header>
 
       {/* Quick Stats */}
@@ -55,13 +55,13 @@ const DashboardView: React.FC = () => {
               <AreaChart data={data}>
                 <defs>
                   <linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15}/>
-                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
                 <Tooltip />
                 <Area type="monotone" dataKey="valor" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" />
               </AreaChart>
@@ -80,11 +80,10 @@ const DashboardView: React.FC = () => {
               { title: 'Novo Aluno', user: 'Mariana Costa', time: '2 dias atrás', type: 'info' },
             ].map((alert, i) => (
               <div key={i} className="flex items-start gap-3 rounded-xl border border-transparent hover:border-indigo-100 hover:bg-indigo-50/30 p-2 transition-all cursor-pointer">
-                <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                  alert.type === 'error' ? 'bg-red-500' : 
-                  alert.type === 'success' ? 'bg-emerald-500' : 
-                  alert.type === 'warning' ? 'bg-orange-500' : 'bg-indigo-500'
-                }`}></div>
+                <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${alert.type === 'error' ? 'bg-red-500' :
+                    alert.type === 'success' ? 'bg-emerald-500' :
+                      alert.type === 'warning' ? 'bg-orange-500' : 'bg-indigo-500'
+                  }`}></div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">{alert.title}</p>
                   <p className="text-xs text-slate-500 font-medium">{alert.user}</p>
