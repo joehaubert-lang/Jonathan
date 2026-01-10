@@ -8,6 +8,7 @@ import EvaluationsView from './views/EvaluationsView';
 import FinancialView from './views/FinancialView';
 
 const App: React.FC = () => {
+  console.log('App component rendering');
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const renderView = () => {
