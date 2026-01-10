@@ -9,13 +9,19 @@ import FinancialView from '../FinancialView';
 
 const TrainerArea: React.FC = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [selectedStudentForEval, setSelectedStudentForEval] = useState<string | null>(null);
+
+    const handleNavigateToEvaluations = (studentId: string) => {
+        setSelectedStudentForEval(studentId);
+        setActiveTab('evaluations');
+    };
 
     const renderView = () => {
         switch (activeTab) {
             case 'dashboard': return <DashboardView />;
-            case 'students': return <StudentsView />;
+            case 'students': return <StudentsView onNavigateToEvaluations={handleNavigateToEvaluations} />;
             case 'workouts': return <WorkoutView />;
-            case 'evaluations': return <EvaluationsView />;
+            case 'evaluations': return <EvaluationsView initialStudentId={selectedStudentForEval} />;
             case 'financial': return <FinancialView />;
             default: return <DashboardView />;
         }

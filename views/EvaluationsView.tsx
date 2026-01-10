@@ -29,7 +29,11 @@ const PostureGrid = () => (
   </div>
 );
 
-const EvaluationsView: React.FC = () => {
+interface EvaluationsViewProps {
+  initialStudentId?: string | null;
+}
+
+const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) => {
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'anthropometry' | 'photos'>('overview');
   const [showForm, setShowForm] = useState(false);
@@ -38,7 +42,17 @@ const EvaluationsView: React.FC = () => {
   const [postureReport, setPostureReport] = useState<any | null>(null);
   const [showGrid, setShowGrid] = useState(true);
 
-  const filteredStudents = mockStudentsWithEvals.filter(s => 
+  // Initialize selected student if ID provided
+  React.useEffect(() => {
+    if (initialStudentId) {
+      const student = mockStudentsWithEvals.find(s => s.id === initialStudentId);
+      if (student) {
+        setSelectedStudent(student);
+      }
+    }
+  }, [initialStudentId]);
+
+  const filteredStudents = mockStudentsWithEvals.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -66,7 +80,7 @@ const EvaluationsView: React.FC = () => {
             <h2 className="text-2xl font-bold text-slate-800">Avaliações Físicas</h2>
             <p className="text-slate-500">Gerencie a evolução biomecânica e resultados.</p>
           </div>
-          <button 
+          <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
           >
@@ -77,9 +91,9 @@ const EvaluationsView: React.FC = () => {
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar aluno..." 
+            <input
+              type="text"
+              placeholder="Buscar aluno..."
               className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -92,8 +106,8 @@ const EvaluationsView: React.FC = () => {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
           {filteredStudents.map((student) => (
-            <div 
-              key={student.id} 
+            <div
+              key={student.id}
               onClick={() => setSelectedStudent(student)}
               className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
             >
@@ -101,8 +115,8 @@ const EvaluationsView: React.FC = () => {
               <div className="flex-1">
                 <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{student.name}</h4>
                 <div className="flex items-center gap-3 mt-1 text-xs font-medium text-slate-400">
-                  <span className="flex items-center gap-1"><Clock size={12}/> {student.lastEval}</span>
-                  <span className="flex items-center gap-1 font-bold text-indigo-500"><Weight size={12}/> {student.weight}</span>
+                  <span className="flex items-center gap-1"><Clock size={12} /> {student.lastEval}</span>
+                  <span className="flex items-center gap-1 font-bold text-indigo-500"><Weight size={12} /> {student.weight}</span>
                 </div>
               </div>
               <ChevronRight size={18} className="text-slate-300" />
@@ -126,7 +140,7 @@ const EvaluationsView: React.FC = () => {
           </div>
         </div>
         <div className="flex gap-2">
-           <button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
             <Plus size={18} /> Nova Medida
           </button>
         </div>
@@ -146,7 +160,7 @@ const EvaluationsView: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={evolutionData}>
                   <defs>
-                    <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/><stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} /><stop offset="95%" stopColor="#4f46e5" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="date" axisLine={false} tickLine={false} />
@@ -158,27 +172,27 @@ const EvaluationsView: React.FC = () => {
             </div>
           </div>
           <div className="space-y-4">
-             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Rápidas</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Gordura Corporal</span><span className="text-sm font-bold text-indigo-600">{selectedStudent.bf}</span></div>
-                  <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Peso Atual</span><span className="text-sm font-bold text-slate-800">{selectedStudent.weight}</span></div>
-                </div>
-             </div>
+            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Rápidas</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Gordura Corporal</span><span className="text-sm font-bold text-indigo-600">{selectedStudent.bf}</span></div>
+                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Peso Atual</span><span className="text-sm font-bold text-slate-800">{selectedStudent.weight}</span></div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {activeTab === 'anthropometry' && (
         <div className="grid gap-6 lg:grid-cols-2">
-           <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4">Medidas de Circunferência</h3>
-              <div className="space-y-3">
-                {['Tórax', 'Cintura', 'Quadril', 'Braço', 'Coxa'].map(label => (
-                  <div key={label} className="flex justify-between p-3 bg-slate-50 rounded-lg"><span className="text-sm font-medium">{label}</span><span className="font-bold">0.0 cm</span></div>
-                ))}
-              </div>
-           </div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h3 className="font-bold text-slate-800 mb-4">Medidas de Circunferência</h3>
+            <div className="space-y-3">
+              {['Tórax', 'Cintura', 'Quadril', 'Braço', 'Coxa'].map(label => (
+                <div key={label} className="flex justify-between p-3 bg-slate-50 rounded-lg"><span className="text-sm font-medium">{label}</span><span className="font-bold">0.0 cm</span></div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -187,13 +201,13 @@ const EvaluationsView: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-bold text-slate-800">Biometria Postural com Simetrógrafo</h3>
             <div className="flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setShowGrid(!showGrid)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${showGrid ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}
               >
                 <Grid size={14} /> {showGrid ? 'Grade On' : 'Grade Off'}
               </button>
-              <button 
+              <button
                 onClick={() => handlePostureAnalysis('https://picsum.photos/seed/posture/400/600')}
                 disabled={isAnalyzing}
                 className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold shadow-lg hover:opacity-90 disabled:opacity-50"
@@ -223,53 +237,53 @@ const EvaluationsView: React.FC = () => {
             <div className="space-y-6">
               {postureReport ? (
                 <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm animate-in fade-in slide-in-from-right-4">
-                   <div className="flex items-center gap-2 mb-4">
-                     <ShieldAlert size={20} className="text-indigo-600" />
-                     <h4 className="font-bold text-slate-800">Diagnóstico IA</h4>
-                   </div>
-                   
-                   <div className="mb-6">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-bold text-slate-500">Score de Alinhamento</span>
-                        <span className="text-sm font-black text-indigo-600">{postureReport.alignmentScore}%</span>
-                      </div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: `${postureReport.alignmentScore}%` }}></div>
-                      </div>
-                   </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldAlert size={20} className="text-indigo-600" />
+                    <h4 className="font-bold text-slate-800">Diagnóstico IA</h4>
+                  </div>
 
-                   <div className="space-y-3 mb-6">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desvios Detectados</p>
-                      {postureReport.deviations.map((dev: string, i: number) => (
-                        <div key={i} className="flex items-start gap-2 text-xs text-slate-600 font-medium">
-                          <CheckCircle size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                          {dev}
-                        </div>
-                      ))}
-                   </div>
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-slate-500">Score de Alinhamento</span>
+                      <span className="text-sm font-black text-indigo-600">{postureReport.alignmentScore}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: `${postureReport.alignmentScore}%` }}></div>
+                    </div>
+                  </div>
 
-                   <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Recomendação Técnica</p>
-                      <p className="text-xs text-indigo-700 leading-relaxed italic">"{postureReport.recommendation}"</p>
-                   </div>
+                  <div className="space-y-3 mb-6">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desvios Detectados</p>
+                    {postureReport.deviations.map((dev: string, i: number) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-slate-600 font-medium">
+                        <CheckCircle size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                        {dev}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-2">Recomendação Técnica</p>
+                    <p className="text-xs text-indigo-700 leading-relaxed italic">"{postureReport.recommendation}"</p>
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-2xl border-2 border-dashed border-slate-200 p-8 flex flex-col items-center justify-center text-center">
-                   <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
-                      <Camera size={24} />
-                   </div>
-                   <h4 className="font-bold text-slate-700 text-sm">Sem Análise Ativa</h4>
-                   <p className="text-xs text-slate-400 mt-2 max-w-[200px]">Clique no botão "Analisar com IA" para gerar o laudo postural automático.</p>
+                  <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                    <Camera size={24} />
+                  </div>
+                  <h4 className="font-bold text-slate-700 text-sm">Sem Análise Ativa</h4>
+                  <p className="text-xs text-slate-400 mt-2 max-w-[200px]">Clique no botão "Analisar com IA" para gerar o laudo postural automático.</p>
                 </div>
               )}
 
               <div className="rounded-2xl bg-slate-800 p-6 text-white shadow-xl">
-                 <h4 className="text-sm font-bold mb-4">Dicas para Fotos</h4>
-                 <ul className="space-y-3 text-[11px] text-slate-400">
-                   <li className="flex gap-2"><span>•</span> Use roupas leves (top/short curto)</li>
-                   <li className="flex gap-2"><span>•</span> Fundo neutro e bem iluminado</li>
-                   <li className="flex gap-2"><span>•</span> Mantenha a câmera na altura do umbigo</li>
-                 </ul>
+                <h4 className="text-sm font-bold mb-4">Dicas para Fotos</h4>
+                <ul className="space-y-3 text-[11px] text-slate-400">
+                  <li className="flex gap-2"><span>•</span> Use roupas leves (top/short curto)</li>
+                  <li className="flex gap-2"><span>•</span> Fundo neutro e bem iluminado</li>
+                  <li className="flex gap-2"><span>•</span> Mantenha a câmera na altura do umbigo</li>
+                </ul>
               </div>
             </div>
           </div>

@@ -8,6 +8,7 @@ export interface Student {
   lastActivity: string;
   goal: string;
   plan: 'Mensal' | 'Trimestral' | 'Anual';
+  phone: string;
 }
 
 export interface Exercise {

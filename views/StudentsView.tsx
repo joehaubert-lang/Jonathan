@@ -5,32 +5,90 @@ import { Student } from '../types';
 import AddStudentModal from '../components/AddStudentModal';
 
 const mockStudents: Student[] = [
-  { id: '1', name: 'Gabriel Silva', email: 'gabriel@email.com', photo: 'https://picsum.photos/id/1/100/100', status: 'active', lastActivity: 'Hoje, 10:30', goal: 'Hipertrofia', plan: 'Trimestral' },
-  { id: '2', name: 'Ana Souza', email: 'ana.souza@email.com', photo: 'https://picsum.photos/id/2/100/100', status: 'active', lastActivity: 'Ontem', goal: 'Emagrecimento', plan: 'Mensal' },
-  { id: '3', name: 'Ricardo Meira', email: 'ricardo@email.com', photo: 'https://picsum.photos/id/3/100/100', status: 'pending', lastActivity: '3 dias atrás', goal: 'Condicionamento', plan: 'Anual' },
-  { id: '4', name: 'Mariana Costa', email: 'marianac@email.com', photo: 'https://picsum.photos/id/4/100/100', status: 'active', lastActivity: 'Hoje, 08:15', goal: 'Flexibilidade', plan: 'Trimestral' },
-  { id: '5', name: 'João Pedro', email: 'jp@email.com', photo: 'https://picsum.photos/id/5/100/100', status: 'inactive', lastActivity: '2 semanas atrás', goal: 'Reabilitação', plan: 'Mensal' },
+  { id: '1', name: 'Gabriel Silva', email: 'gabriel@email.com', photo: 'https://picsum.photos/id/1/100/100', status: 'active', lastActivity: 'Hoje, 10:30', goal: 'Hipertrofia', plan: 'Trimestral', phone: '5511999999999' },
+  { id: '2', name: 'Ana Souza', email: 'ana.souza@email.com', photo: 'https://picsum.photos/id/2/100/100', status: 'active', lastActivity: 'Ontem', goal: 'Emagrecimento', plan: 'Mensal', phone: '5511988888888' },
+  { id: '3', name: 'Ricardo Meira', email: 'ricardo@email.com', photo: 'https://picsum.photos/id/3/100/100', status: 'pending', lastActivity: '3 dias atrás', goal: 'Condicionamento', plan: 'Anual', phone: '5511977777777' },
+  { id: '4', name: 'Mariana Costa', email: 'marianac@email.com', photo: 'https://picsum.photos/id/4/100/100', status: 'active', lastActivity: 'Hoje, 08:15', goal: 'Flexibilidade', plan: 'Trimestral', phone: '5511966666666' },
+  { id: '5', name: 'João Pedro', email: 'jp@email.com', photo: 'https://picsum.photos/id/5/100/100', status: 'inactive', lastActivity: '2 semanas atrás', goal: 'Reabilitação', plan: 'Mensal', phone: '5511955555555' },
 ];
 
-const StudentsView: React.FC = () => {
+interface StudentsViewProps {
+  onNavigateToEvaluations: (studentId: string) => void;
+}
+
+const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) => {
+  const [students, setStudents] = useState<Student[]>(mockStudents);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
-  const filteredStudents = mockStudents.filter(s =>
+  const handleWhatsApp = (phone: string) => {
+    window.open(`https://wa.me/${phone}`, '_blank');
+  };
+
+  const handleEvaluations = (studentId: string) => {
+    onNavigateToEvaluations(studentId);
+  };
+
+  const handleEdit = (student: Student) => {
+    setEditingStudent(student);
+    setIsModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleDelete = (studentId: string, studentName: string) => {
+    // Force window.confirm to ensure browser dialog
+    if (window.confirm(`Tem certeza que deseja excluir o aluno ${studentName}?`)) {
+      setStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
+    }
+    setActiveMenuId(null);
+  };
+
+  const handleSaveStudent = (studentData: any) => {
+    if (studentData.id) {
+      // Update existing
+      setStudents(prev => prev.map(s => s.id === studentData.id ? { ...s, ...studentData } : s));
+    } else {
+      // Create new
+      const newStudent: Student = {
+        id: Date.now().toString(),
+        status: 'active',
+        lastActivity: 'Agora',
+        goal: 'Novo Aluno',
+        plan: 'Mensal',
+        photo: `https://picsum.photos/seed/${Date.now()}/100/100`, // Random photo
+        ...studentData
+      };
+      setStudents([newStudent, ...students]);
+    }
+    setEditingStudent(null);
+  };
+
+  const toggleMenu = (studentId: string) => {
+    setActiveMenuId(activeMenuId === studentId ? null : studentId);
+  };
+
+  const filteredStudents = students.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      <AddStudentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+    <div className="space-y-6" onClick={() => setActiveMenuId(null)}>
+      <AddStudentModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditingStudent(null); }}
+        studentToEdit={editingStudent}
+        onSave={handleSaveStudent}
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Seus Alunos</h2>
-          <p className="text-slate-500">Gerencie sua base de {mockStudents.length} alunos no FitFlow.</p>
+          <p className="text-slate-500">Gerencie sua base de {students.length} alunos no FitFlow.</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={(e) => { e.stopPropagation(); setEditingStudent(null); setIsModalOpen(true); }}
           className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95"
         >
           <UserPlus size={18} /> Novo Aluno
@@ -81,15 +139,48 @@ const StudentsView: React.FC = () => {
             {/* Right: Actions & Plan */}
             <div className="flex flex-col items-end gap-2">
               <div className="flex gap-2">
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all">
-                  <MessageCircle size={16} />
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleWhatsApp(student.phone); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                  title="WhatsApp"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="lucide lucide-message-circle">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                  </svg>
                 </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleEvaluations(student.id); }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all"
+                  title="Avaliações"
+                >
                   <FileText size={16} />
                 </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-200 transition-all">
-                  <MoreVertical size={16} />
-                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleMenu(student.id); }}
+                    className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${activeMenuId === student.id ? 'bg-slate-200 text-slate-800' : 'bg-slate-50 text-slate-600 hover:bg-slate-200'}`}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+
+                  {activeMenuId === student.id && (
+                    <div className="absolute right-0 top-full mt-2 w-32 rounded-xl bg-white p-1 shadow-xl border border-slate-100 z-10 animate-in fade-in zoom-in-95 duration-200">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEdit(student); }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(student.id, student.name); }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1 shadow-sm border border-slate-100">
