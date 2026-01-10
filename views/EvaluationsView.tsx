@@ -1,8 +1,12 @@
 
-import React, { useState } from 'react';
-import { Ruler, Weight, Scissors, ChevronRight, BarChart2, Camera, Info, Plus, Calendar, TrendingUp, TrendingDown, Search, ArrowLeft, Maximize2, Sparkles, User, Clock, Filter, Grid, ShieldAlert, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Ruler, Weight, Scissors, ChevronRight, BarChart2, Camera, Info, Plus, Calendar, TrendingUp, TrendingDown, Search, ArrowLeft, Maximize2, Sparkles, User, Clock, Filter, Grid, ShieldAlert, CheckCircle, MoreVertical, Trash2, Pencil, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { analyzePosture } from '../services/geminiService';
+
+
+
+import NewEvaluationWizard from '../components/NewEvaluationWizard';
 
 const evolutionData = [
   { date: 'Jan', peso: 88.5, gordura: 22 },
@@ -11,11 +15,11 @@ const evolutionData = [
   { date: 'Abr', peso: 84.5, gordura: 18.5 },
 ];
 
-const mockStudentsWithEvals = [
-  { id: '1', name: 'Gabriel Silva', photo: 'https://picsum.photos/id/1/100/100', lastEval: '12 Abr, 2024', weight: '84.5kg', bf: '18.5%', trend: 'down' },
-  { id: '2', name: 'Ana Souza', photo: 'https://picsum.photos/id/2/100/100', lastEval: '10 Mar, 2024', weight: '62.0kg', bf: '22.1%', trend: 'up' },
-  { id: '4', name: 'Mariana Costa', photo: 'https://picsum.photos/id/4/100/100', lastEval: '15 Abr, 2024', weight: '58.2kg', bf: '19.0%', trend: 'down' },
-  { id: '6', name: 'Carlos Weber', photo: 'https://picsum.photos/id/6/100/100', lastEval: '01 Abr, 2024', weight: '92.5kg', bf: '24.5%', trend: 'stable' },
+const initialStudents = [
+  { id: '1', name: 'Gabriel Silva', photo: 'https://picsum.photos/id/1/100/100', lastEval: '12 Abr, 2024', weight: '84.5kg', bf: '18.5%', trend: 'down', gender: 'masculino' },
+  { id: '2', name: 'Ana Souza', photo: 'https://picsum.photos/id/2/100/100', lastEval: '10 Mar, 2024', weight: '62.0kg', bf: '22.1%', trend: 'up', gender: 'feminino' },
+  { id: '4', name: 'Mariana Costa', photo: 'https://picsum.photos/id/4/100/100', lastEval: '15 Abr, 2024', weight: '58.2kg', bf: '19.0%', trend: 'down', gender: 'feminino' },
+  { id: '6', name: 'Carlos Weber', photo: 'https://picsum.photos/id/6/100/100', lastEval: '01 Abr, 2024', weight: '92.5kg', bf: '24.5%', trend: 'stable', gender: 'masculino' },
 ];
 
 const PostureGrid = () => (
@@ -29,15 +33,107 @@ const PostureGrid = () => (
   </div>
 );
 
+interface EvaluationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  evaluation: any;
+  onSave: (data: any) => void;
+}
+
+const EvaluationModal: React.FC<EvaluationModalProps> = ({ isOpen, onClose, evaluation, onSave }) => {
+  const [formData, setFormData] = useState({
+    weight: '',
+    bf: '',
+    date: ''
+  });
+
+  useEffect(() => {
+    if (evaluation) {
+      setFormData({
+        weight: evaluation.weight.replace('kg', ''),
+        bf: evaluation.bf.replace('%', ''),
+        date: evaluation.lastEval
+      });
+    } else {
+      setFormData({ weight: '', bf: '', date: '' });
+    }
+  }, [evaluation, isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-800">{evaluation ? 'Editar Avaliação' : 'Nova Avaliação'}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Peso (kg)</label>
+            <input
+              type="text"
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-indigo-500 transition-all"
+              placeholder="Ex: 85.5"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Gordura Corporal (%)</label>
+            <input
+              type="text"
+              value={formData.bf}
+              onChange={(e) => setFormData({ ...formData, bf: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-indigo-500 transition-all"
+              placeholder="Ex: 15.0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Data</label>
+            <input
+              type="text"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-indigo-500 transition-all"
+              placeholder="Ex: 12 Abr, 2024"
+            />
+          </div>
+          <button
+            onClick={() => onSave(formData)}
+            className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface EvaluationsViewProps {
   initialStudentId?: string | null;
 }
 
 const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) => {
+  const [studentsWithEvals, setStudentsWithEvals] = useState(initialStudents);
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'anthropometry' | 'photos'>('overview');
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(false); // Can be reused or replaced
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingEval, setEditingEval] = useState<any | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSaveNewEvaluation = (data: any) => {
+    console.log('Saved new evaluation:', data);
+    // Here we would typically API call to save
+    setWizardOpen(false);
+  };
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [postureReport, setPostureReport] = useState<any | null>(null);
   const [showGrid, setShowGrid] = useState(true);
@@ -45,14 +141,42 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   // Initialize selected student if ID provided
   React.useEffect(() => {
     if (initialStudentId) {
-      const student = mockStudentsWithEvals.find(s => s.id === initialStudentId);
+      const student = studentsWithEvals.find(s => s.id === initialStudentId);
       if (student) {
         setSelectedStudent(student);
       }
     }
-  }, [initialStudentId]);
+  }, [initialStudentId, studentsWithEvals]);
 
-  const filteredStudents = mockStudentsWithEvals.filter(s =>
+  const handleDeleteEvaluation = (id: string, name: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir a avaliação de ${name}?`)) {
+      setStudentsWithEvals(prev => prev.filter(s => s.id !== id));
+    }
+    setActiveMenuId(null);
+  };
+
+  const handleEditEvaluation = (student: any) => {
+    setEditingEval(student);
+    setIsModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleSaveEvaluation = (data: any) => {
+    if (editingEval) {
+      setStudentsWithEvals(prev => prev.map(s => s.id === editingEval.id ? {
+        ...s,
+        weight: `${data.weight}kg`,
+        bf: `${data.bf}%`,
+        lastEval: data.date
+      } : s));
+    } else {
+      // Add new logic if needed, but for now it's edit only based on task
+    }
+    setIsModalOpen(false);
+    setEditingEval(null);
+  };
+
+  const filteredStudents = studentsWithEvals.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -72,16 +196,35 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
     }, 2000);
   };
 
+  const toggleMenu = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveMenuId(activeMenuId === id ? null : id);
+  };
+
   if (!selectedStudent) {
     return (
-      <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-6 animate-in fade-in duration-500" onClick={() => setActiveMenuId(null)}>
+        <EvaluationModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          evaluation={editingEval}
+          onSave={handleSaveEvaluation}
+        />
+
+        <NewEvaluationWizard
+          isOpen={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          student={studentsWithEvals[0]}
+          onSave={handleSaveNewEvaluation}
+        />
+
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Avaliações Físicas</h2>
             <p className="text-slate-500">Gerencie a evolução biomecânica e resultados.</p>
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => setWizardOpen(true)}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
           >
             <Plus size={18} /> Nova Avaliação
@@ -109,7 +252,7 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
             <div
               key={student.id}
               onClick={() => setSelectedStudent(student)}
-              className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+              className="group relative flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
             >
               <img src={student.photo} alt={student.name} className="h-16 w-16 rounded-2xl object-cover border border-slate-100" />
               <div className="flex-1">
@@ -119,7 +262,32 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
                   <span className="flex items-center gap-1 font-bold text-indigo-500"><Weight size={12} /> {student.weight}</span>
                 </div>
               </div>
-              <ChevronRight size={18} className="text-slate-300" />
+
+              <div className="relative">
+                <button
+                  onClick={(e) => toggleMenu(student.id, e)}
+                  className={`p-2 rounded-lg transition-all ${activeMenuId === student.id ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                >
+                  <MoreVertical size={20} />
+                </button>
+
+                {activeMenuId === student.id && (
+                  <div className="absolute right-0 top-full mt-2 w-32 rounded-xl bg-white p-1 shadow-xl border border-slate-100 z-10 animate-in fade-in zoom-in-95 duration-200">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleEditEvaluation(student); }}
+                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Pencil size={14} /> Editar
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteEvaluation(student.id, student.name); }}
+                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={14} /> Excluir
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -129,6 +297,13 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
 
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+      <NewEvaluationWizard
+        isOpen={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        student={selectedStudent || studentsWithEvals[0]}
+        onSave={handleSaveNewEvaluation}
+      />
+
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button onClick={() => setSelectedStudent(null)} className="h-10 w-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 transition-all">
@@ -140,8 +315,8 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
-            <Plus size={18} /> Nova Medida
+          <button onClick={() => setWizardOpen(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+            <Plus size={18} /> Nova Avaliação
           </button>
         </div>
       </header>

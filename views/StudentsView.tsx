@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Search, UserPlus, Filter, MoreVertical, MessageCircle, FileText } from 'lucide-react';
+import { Search, UserPlus, Filter, MoreVertical, MessageCircle, FileText, CheckCircle2, XCircle } from 'lucide-react';
 import { Student } from '../types';
 import AddStudentModal from '../components/AddStudentModal';
+import StudentActionModal from '../components/StudentActionModal';
 
 const mockStudents: Student[] = [
   { id: '1', name: 'Gabriel Silva', email: 'gabriel@email.com', photo: 'https://picsum.photos/id/1/100/100', status: 'active', lastActivity: 'Hoje, 10:30', goal: 'Hipertrofia', plan: 'Trimestral', phone: '5511999999999' },
@@ -23,6 +24,13 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
+  // Action Modal State
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [selectedStudentForAction, setSelectedStudentForAction] = useState<Student | null>(null);
+
+  // Filter State
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+
   const handleWhatsApp = (phone: string) => {
     window.open(`https://wa.me/${phone}`, '_blank');
   };
@@ -37,12 +45,26 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
     setActiveMenuId(null);
   };
 
-  const handleDelete = (studentId: string, studentName: string) => {
-    // Force window.confirm to ensure browser dialog
-    if (window.confirm(`Tem certeza que deseja excluir o aluno ${studentName}?`)) {
-      setStudents(prevStudents => prevStudents.filter(s => s.id !== studentId));
-    }
+  const handleDeleteClick = (student: Student) => {
+    setSelectedStudentForAction(student);
+    setActionModalOpen(true);
     setActiveMenuId(null);
+  };
+
+  const confirmDelete = () => {
+    if (selectedStudentForAction) {
+      setStudents(prev => prev.filter(s => s.id !== selectedStudentForAction.id));
+      setActionModalOpen(false);
+      setSelectedStudentForAction(null);
+    }
+  };
+
+  const confirmInactivate = () => {
+    if (selectedStudentForAction) {
+      setStudents(prev => prev.map(s => s.id === selectedStudentForAction.id ? { ...s, status: 'inactive' } : s));
+      setActionModalOpen(false);
+      setSelectedStudentForAction(null);
+    }
   };
 
   const handleSaveStudent = (studentData: any) => {
@@ -69,9 +91,14 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
     setActiveMenuId(activeMenuId === studentId ? null : studentId);
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (filterStatus === 'all') return matchesSearch;
+    if (filterStatus === 'active') return matchesSearch && s.status !== 'inactive';
+    if (filterStatus === 'inactive') return matchesSearch && s.status === 'inactive';
+    return matchesSearch;
+  });
 
   return (
     <div className="space-y-6" onClick={() => setActiveMenuId(null)}>
@@ -80,6 +107,14 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
         onClose={() => { setIsModalOpen(false); setEditingStudent(null); }}
         studentToEdit={editingStudent}
         onSave={handleSaveStudent}
+      />
+
+      <StudentActionModal
+        isOpen={actionModalOpen}
+        onClose={() => { setActionModalOpen(false); setSelectedStudentForAction(null); }}
+        studentName={selectedStudentForAction?.name || ''}
+        onDelete={confirmDelete}
+        onInactivate={confirmInactivate}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -96,7 +131,7 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
       </div>
 
       {/* Search and Filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input
@@ -107,9 +142,27 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-slate-600 hover:bg-slate-50 transition-colors">
-          <Filter size={18} />
-        </button>
+
+        <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setFilterStatus('all')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setFilterStatus('active')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'active' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Ativos
+          </button>
+          <button
+            onClick={() => setFilterStatus('inactive')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${filterStatus === 'inactive' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Inativos
+          </button>
+        </div>
       </div>
 
       {/* Student List */}
@@ -173,7 +226,7 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
                         Editar
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(student.id, student.name); }}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(student); }}
                         className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
                       >
                         Excluir

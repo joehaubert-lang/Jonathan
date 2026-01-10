@@ -9,6 +9,7 @@ export interface Student {
   goal: string;
   plan: 'Mensal' | 'Trimestral' | 'Anual';
   phone: string;
+  gender?: 'masculino' | 'feminino';
 }
 
 export interface Exercise {
