@@ -103,22 +103,23 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
     }
   };
 
-  const confirmInactivate = async () => {
+  const confirmToggleStatus = async () => {
     if (selectedStudentForAction) {
+      const newStatus = selectedStudentForAction.status === 'inactive' ? 'active' : 'inactive';
       try {
         const { error } = await supabase
           .from('students')
-          .update({ status: 'inactive' })
+          .update({ status: newStatus })
           .eq('id', selectedStudentForAction.id);
 
         if (error) throw error;
 
-        setStudents(prev => prev.map(s => s.id === selectedStudentForAction.id ? { ...s, status: 'inactive' } : s));
+        setStudents(prev => prev.map(s => s.id === selectedStudentForAction.id ? { ...s, status: newStatus } : s));
         setActionModalOpen(false);
         setSelectedStudentForAction(null);
       } catch (error) {
-        console.error('Error inactivating student:', error);
-        alert('Erro ao inativar aluno.');
+        console.error('Error toggling student status:', error);
+        alert('Erro ao alterar status do aluno.');
       }
     }
   };
@@ -234,7 +235,8 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
         onClose={() => { setActionModalOpen(false); setSelectedStudentForAction(null); }}
         studentName={selectedStudentForAction?.name || ''}
         onDelete={confirmDelete}
-        onInactivate={confirmInactivate}
+        onToggleStatus={confirmToggleStatus}
+        isInactive={selectedStudentForAction?.status === 'inactive'}
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

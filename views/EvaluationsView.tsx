@@ -2,26 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Ruler, Weight, Scissors, ChevronRight, BarChart2, Camera, Info, Plus, Calendar, TrendingUp, TrendingDown, Search, ArrowLeft, Maximize2, Sparkles, User, Clock, Filter, Grid, ShieldAlert, CheckCircle, MoreVertical, Trash2, Pencil, X } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { analyzePosture } from '../services/geminiService';
-
-
-
+// import { analyzePosture } from '../services/geminiService'; // Commented out generated service
 import NewEvaluationWizard from '../components/NewEvaluationWizard';
+import { supabase } from '../services/supabaseClient';
+import { Student } from '../types';
 
-const evolutionData = [
-  { date: 'Jan', peso: 88.5, gordura: 22 },
-  { date: 'Fev', peso: 87.2, gordura: 20.5 },
-  { date: 'Mar', peso: 85.8, gordura: 19.8 },
-  { date: 'Abr', peso: 84.5, gordura: 18.5 },
-];
-
-const initialStudents = [
-  { id: '1', name: 'Gabriel Silva', photo: 'https://picsum.photos/id/1/100/100', lastEval: '12 Abr, 2024', weight: '84.5kg', bf: '18.5%', trend: 'down', gender: 'masculino' },
-  { id: '2', name: 'Ana Souza', photo: 'https://picsum.photos/id/2/100/100', lastEval: '10 Mar, 2024', weight: '62.0kg', bf: '22.1%', trend: 'up', gender: 'feminino' },
-  { id: '4', name: 'Mariana Costa', photo: 'https://picsum.photos/id/4/100/100', lastEval: '15 Abr, 2024', weight: '58.2kg', bf: '19.0%', trend: 'down', gender: 'feminino' },
-  { id: '6', name: 'Carlos Weber', photo: 'https://picsum.photos/id/6/100/100', lastEval: '01 Abr, 2024', weight: '92.5kg', bf: '24.5%', trend: 'stable', gender: 'masculino' },
-];
-
+// Helper for Posture Grid
 const PostureGrid = () => (
   <div className="absolute inset-0 pointer-events-none grid grid-cols-10 grid-rows-10 border border-indigo-400/30">
     {Array.from({ length: 100 }).map((_, i) => (
@@ -33,6 +19,7 @@ const PostureGrid = () => (
   </div>
 );
 
+// Simple Edit Modal (Reused)
 interface EvaluationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -50,9 +37,9 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ isOpen, onClose, eval
   useEffect(() => {
     if (evaluation) {
       setFormData({
-        weight: evaluation.weight.replace('kg', ''),
-        bf: evaluation.bf.replace('%', ''),
-        date: evaluation.lastEval
+        weight: evaluation.weight ? String(evaluation.weight) : '',
+        bf: evaluation.body_fat ? String(evaluation.body_fat) : '',
+        date: evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('pt-BR') : ''
       });
     } else {
       setFormData({ weight: '', bf: '', date: '' });
@@ -91,16 +78,7 @@ const EvaluationModal: React.FC<EvaluationModalProps> = ({ isOpen, onClose, eval
               placeholder="Ex: 15.0"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Data</label>
-            <input
-              type="text"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-indigo-500 transition-all"
-              placeholder="Ex: 12 Abr, 2024"
-            />
-          </div>
+          {/* Date is usually set by system or separate picker, simplifying for edit */}
           <button
             onClick={() => onSave(formData)}
             className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100"
@@ -118,74 +96,184 @@ interface EvaluationsViewProps {
 }
 
 const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) => {
-  const [studentsWithEvals, setStudentsWithEvals] = useState(initialStudents);
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'anthropometry' | 'photos'>('overview');
-  const [showForm, setShowForm] = useState(false); // Can be reused or replaced
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editingEval, setEditingEval] = useState<any | null>(null);
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [evaluations, setEvaluations] = useState<any[]>([]); // Current student's evaluations
 
+  const [activeTab, setActiveTab] = useState<'overview' | 'anthropometry' | 'photos'>('overview');
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEval, setEditingEval] = useState<any | null>(null);
+
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleSaveNewEvaluation = (data: any) => {
-    console.log('Saved new evaluation:', data);
-    // Here we would typically API call to save
-    setWizardOpen(false);
-  };
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [postureReport, setPostureReport] = useState<any | null>(null);
   const [showGrid, setShowGrid] = useState(true);
 
-  // Initialize selected student if ID provided
-  React.useEffect(() => {
-    if (initialStudentId) {
-      const student = studentsWithEvals.find(s => s.id === initialStudentId);
-      if (student) {
-        setSelectedStudent(student);
+  // Initial Fetch of Students
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching students:', error);
+    } else if (data) {
+      const mappedStudents: Student[] = data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        photo: s.photo,
+        status: s.status,
+        lastActivity: s.last_activity,
+        goal: s.goal,
+        plan: s.plan,
+        phone: s.phone,
+        gender: s.gender
+      }));
+      setStudents(mappedStudents);
+
+      if (initialStudentId) {
+        const preSelected = mappedStudents.find(s => s.id === initialStudentId);
+        if (preSelected) handleStudentSelect(preSelected);
       }
     }
-  }, [initialStudentId, studentsWithEvals]);
-
-  const handleDeleteEvaluation = (id: string, name: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir a avaliação de ${name}?`)) {
-      setStudentsWithEvals(prev => prev.filter(s => s.id !== id));
-    }
-    setActiveMenuId(null);
   };
 
-  const handleEditEvaluation = (student: any) => {
-    setEditingEval(student);
+  const handleStudentSelect = async (student: Student) => {
+    setSelectedStudent(student);
+    setActiveTab('overview');
+    await fetchEvaluations(student.id);
+  };
+
+  const fetchEvaluations = async (studentId: string) => {
+    const { data, error } = await supabase
+      .from('evaluations')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching evaluations:', error);
+    } else {
+      setEvaluations(data || []);
+    }
+  };
+
+  // --- Actions ---
+
+  const handleSaveNewEvaluation = async (data: any) => {
+    if (!selectedStudent) return;
+
+    try {
+      const { error } = await supabase
+        .from('evaluations')
+        .insert([{
+          student_id: selectedStudent.id,
+          date: new Date().toISOString(), // Using ISO string for general compatibility
+          weight: parseFloat(data.weight),
+          height: parseFloat(data.height),
+          body_fat: parseFloat(data.bf || '0'), // Renamed from fat_percentage
+          // Store extra metrics and measurements in JSONB
+          measurements: {
+            muscle_mass: parseFloat(data.muscleMass || '0'), // Moved into measurements
+            visceral_fat: parseFloat(data.visceralFat || '0'), // Moved into measurements
+            chest: data.chest,
+            abdomen: data.abdomen,
+            thigh: data.thigh,
+            triceps: data.triceps,
+            suprailiac: data.suprailiac,
+            subscapular: data.subscapular,
+            axillary: data.axillary,
+            neck: data.neck,
+            shoulder: data.shoulder,
+            chestCirc: data.chestCirc,
+            waist: data.waist,
+            abdomenCirc: data.abdomenCirc,
+            hip: data.hip,
+            rightArm: data.rightArm,
+            leftArm: data.leftArm,
+            rightThigh: data.rightThigh,
+            leftThigh: data.leftThigh,
+            rightCalf: data.rightCalf,
+            leftCalf: data.leftCalf
+          },
+          // For now, ignoring photo upload logic to supabase storage as it wasn't strictly requested yet and requires bucket setup
+          // photos: ... 
+        }]);
+
+      if (error) throw error;
+
+      // Refresh evaluations
+      await fetchEvaluations(selectedStudent.id);
+      setWizardOpen(false);
+
+    } catch (error) {
+      console.error('Error saving evaluation:', error);
+      alert('Erro ao salvar avaliação. Verifique se todos os campos obrigatórios (Peso, Altura) estão preenchidos.');
+    }
+  };
+
+  const handleEditEvaluation = (evalItem: any) => {
+    setEditingEval(evalItem);
     setIsModalOpen(true);
     setActiveMenuId(null);
   };
 
-  const handleSaveEvaluation = (data: any) => {
-    if (editingEval) {
-      setStudentsWithEvals(prev => prev.map(s => s.id === editingEval.id ? {
-        ...s,
-        weight: `${data.weight}kg`,
-        bf: `${data.bf}%`,
-        lastEval: data.date
-      } : s));
-    } else {
-      // Add new logic if needed, but for now it's edit only based on task
+  const handleSaveEdit = async (formData: any) => {
+    if (!editingEval) return;
+
+    try {
+      const { error } = await supabase
+        .from('evaluations')
+        .update({
+          weight: parseFloat(formData.weight),
+          body_fat: parseFloat(formData.bf) // Changed from fat_percentage
+        })
+        .eq('id', editingEval.id);
+
+      if (error) throw error;
+
+      // Refresh
+      if (selectedStudent) fetchEvaluations(selectedStudent.id);
+      setIsModalOpen(false);
+      setEditingEval(null);
+
+    } catch (error) {
+      console.error('Error updating evaluation:', error);
+      alert('Erro ao atualizar avaliação.');
     }
-    setIsModalOpen(false);
-    setEditingEval(null);
   };
 
-  const filteredStudents = studentsWithEvals.filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleDeleteEvaluation = async (id: string) => {
+    if (window.confirm(`Tem certeza que deseja excluir esta avaliação?`)) {
+      try {
+        const { error } = await supabase
+          .from('evaluations')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        if (selectedStudent) fetchEvaluations(selectedStudent.id);
+      } catch (error) {
+        console.error('Error deleting evaluation:', error);
+        alert('Erro ao excluir avaliação.');
+      }
+    }
+    setActiveMenuId(null);
+  };
 
   const handlePostureAnalysis = async (imgUrl: string) => {
     setIsAnalyzing(true);
-    // Em um ambiente real, converteríamos a URL ou Blob para Base64 aqui
-    // Simulando chamada para o Gemini com imagem dummy
+    // Mock analysis
     setTimeout(async () => {
-      // Usando dados mockados para demonstração rápida no frontend
       const mockResult = {
         deviations: ["Ombro direito elevado", "Inclinação pélvica anterior", "Leve valgo em joelho esquerdo"],
         alignmentScore: 78,
@@ -201,34 +289,41 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
     setActiveMenuId(activeMenuId === id ? null : id);
   };
 
+  // Helper to get latest metrics for student card
+  // Since we fetch evaluations ONLY when selecting a student, the main list view 
+  // needs to handle "latest" data diffrently or we just show static/no data
+  // for performance in this demo. Or we could fetch latest eval for all students.
+  // For simplicity, I'll show generic info or fetch it if needed. 
+  // Actually, let's keep it simple: List of students. 
+  // If we really want the "last eval date" on the card, we'd need a join or separate fetch.
+  // Given time constraints, I will omit dynamic "last eval" on the main card list unless requested.
+
+  const filteredStudents = students.filter(s =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // --- Render ---
+
   if (!selectedStudent) {
     return (
       <div className="space-y-6 animate-in fade-in duration-500" onClick={() => setActiveMenuId(null)}>
-        <EvaluationModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          evaluation={editingEval}
-          onSave={handleSaveEvaluation}
-        />
-
-        <NewEvaluationWizard
-          isOpen={wizardOpen}
-          onClose={() => setWizardOpen(false)}
-          student={studentsWithEvals[0]}
-          onSave={handleSaveNewEvaluation}
-        />
+        {/* Creating a new evaluation without selected student implicitly means selecting one first in the wizard or here.. 
+            The wizard accepts a student prop. If we open wizard from here, we default to first student or force select?
+            Let's keep the wizard button but it might need to select a student first.
+            For now, I'll disable it or simple pick first.
+        */}
 
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Avaliações Físicas</h2>
-            <p className="text-slate-500">Gerencie a evolução biomecânica e resultados.</p>
+            <p className="text-slate-500">Selecione um aluno para visualizar ou registrar avaliações.</p>
           </div>
-          <button
-            onClick={() => setWizardOpen(true)}
+          {/* <button
+            onClick={() => { if(students.length > 0) { setSelectedStudent(students[0]); setWizardOpen(true); } }}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95"
           >
             <Plus size={18} /> Nova Avaliação
-          </button>
+          </button> */}
         </header>
 
         <div className="flex gap-2">
@@ -251,42 +346,19 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           {filteredStudents.map((student) => (
             <div
               key={student.id}
-              onClick={() => setSelectedStudent(student)}
+              onClick={() => handleStudentSelect(student)}
               className="group relative flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
             >
-              <img src={student.photo} alt={student.name} className="h-16 w-16 rounded-2xl object-cover border border-slate-100" />
+              <img src={student.photo || 'https://via.placeholder.com/100'} alt={student.name} className="h-16 w-16 rounded-2xl object-cover border border-slate-100" />
               <div className="flex-1">
                 <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{student.name}</h4>
                 <div className="flex items-center gap-3 mt-1 text-xs font-medium text-slate-400">
-                  <span className="flex items-center gap-1"><Clock size={12} /> {student.lastEval}</span>
-                  <span className="flex items-center gap-1 font-bold text-indigo-500"><Weight size={12} /> {student.weight}</span>
+                  <span className="flex items-center gap-1"><User size={12} /> {student.gender || 'Não informado'}</span>
+                  {/* Dynamic last eval date would require more fetching complexity. Omitted for MVP performance. */}
                 </div>
               </div>
-
-              <div className="relative">
-                <button
-                  onClick={(e) => toggleMenu(student.id, e)}
-                  className={`p-2 rounded-lg transition-all ${activeMenuId === student.id ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-                >
-                  <MoreVertical size={20} />
-                </button>
-
-                {activeMenuId === student.id && (
-                  <div className="absolute right-0 top-full mt-2 w-32 rounded-xl bg-white p-1 shadow-xl border border-slate-100 z-10 animate-in fade-in zoom-in-95 duration-200">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleEditEvaluation(student); }}
-                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      <Pencil size={14} /> Editar
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteEvaluation(student.id, student.name); }}
-                      className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 size={14} /> Excluir
-                    </button>
-                  </div>
-                )}
+              <div className="text-indigo-600">
+                <ChevronRight />
               </div>
             </div>
           ))}
@@ -295,12 +367,31 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
     );
   }
 
+  // --- Student Detail View ---
+
+  // Prepare chart data
+  const evolutionData = evaluations.map(e => ({
+    date: new Date(e.created_at || e.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+    peso: e.weight,
+    gordura: e.body_fat // Changed from fat_percentage
+  })).reverse(); // Oldest to newest for chart
+
+  const latestEval = evaluations[0];
+
   return (
-    <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
+    <div className="space-y-6 animate-in slide-in-from-right-4 duration-500" onClick={() => setActiveMenuId(null)}>
+
+      <EvaluationModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        evaluation={editingEval}
+        onSave={handleSaveEdit}
+      />
+
       <NewEvaluationWizard
         isOpen={wizardOpen}
         onClose={() => setWizardOpen(false)}
-        student={selectedStudent || studentsWithEvals[0]}
+        student={selectedStudent}
         onSave={handleSaveNewEvaluation}
       />
 
@@ -311,7 +402,7 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           </button>
           <div>
             <h2 className="text-2xl font-bold text-slate-800">{selectedStudent.name}</h2>
-            <p className="text-slate-500 flex items-center gap-1 text-sm"><User size={14} /> Biometria e Fotos</p>
+            <p className="text-slate-500 flex items-center gap-1 text-sm"><User size={14} /> Histórico de Avaliações</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -332,26 +423,53 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           <div className="lg:col-span-2 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
             <h3 className="font-bold text-slate-800 mb-6">Tendência de Massa Corporal</h3>
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={evolutionData}>
-                  <defs>
-                    <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} /><stop offset="95%" stopColor="#4f46e5" stopOpacity={0} /></linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="peso" stroke="#4f46e5" strokeWidth={3} fill="url(#colorPeso)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {evolutionData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={evolutionData}>
+                    <defs>
+                      <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} /><stop offset="95%" stopColor="#4f46e5" stopOpacity={0} /></linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="peso" stroke="#4f46e5" strokeWidth={3} fill="url(#colorPeso)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-400">
+                  Sem dados suficientes.
+                </div>
+              )}
             </div>
           </div>
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Rápidas</h3>
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Atuais</h3>
               <div className="space-y-4">
-                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Gordura Corporal</span><span className="text-sm font-bold text-indigo-600">{selectedStudent.bf}</span></div>
-                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Peso Atual</span><span className="text-sm font-bold text-slate-800">{selectedStudent.weight}</span></div>
+                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Gordura Corporal</span><span className="text-sm font-bold text-indigo-600">{latestEval?.body_fat || '-'}%</span></div>
+                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Peso Atual</span><span className="text-sm font-bold text-slate-800">{latestEval?.weight || '-'} kg</span></div>
+                <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Massa Muscular</span><span className="text-sm font-bold text-emerald-600">{latestEval?.measurements?.muscle_mass || '-'} kg</span></div>
+              </div>
+            </div>
+
+            {/* List of Recent Evaluations for Quick Edit */}
+            <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Histórico Recente</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {evaluations.map((ev) => (
+                  <div key={ev.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 text-xs">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-700">{new Date(ev.created_at).toLocaleDateString('pt-BR')}</span>
+                      <span className="text-slate-400">{ev.weight}kg • {ev.body_fat}% BF</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEditEvaluation(ev)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded-lg transition-colors"><Pencil size={14} /></button>
+                      <button onClick={() => handleDeleteEvaluation(ev.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+                {evaluations.length === 0 && <p className="text-center text-xs text-slate-400 py-4">Nenhuma avaliação registrada.</p>}
               </div>
             </div>
           </div>
@@ -360,14 +478,36 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
 
       {activeTab === 'anthropometry' && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h3 className="font-bold text-slate-800 mb-4">Medidas de Circunferência</h3>
-            <div className="space-y-3">
-              {['Tórax', 'Cintura', 'Quadril', 'Braço', 'Coxa'].map(label => (
-                <div key={label} className="flex justify-between p-3 bg-slate-50 rounded-lg"><span className="text-sm font-medium">{label}</span><span className="font-bold">0.0 cm</span></div>
-              ))}
+          {latestEval?.measurements ? (
+            <>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="font-bold text-slate-800 mb-4">Perímetros (cm)</h3>
+                <div className="space-y-3">
+                  {Object.entries(latestEval.measurements).filter(([k]) => ['chestCirc', 'waist', 'abdomenCirc', 'hip', 'neck', 'shoulder'].includes(k)).map(([key, value]) => (
+                    <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm font-medium capitalize">{key.replace('Circ', '')}</span>
+                      <span className="font-bold">{value} cm</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h3 className="font-bold text-slate-800 mb-4">Membros (cm)</h3>
+                <div className="space-y-3">
+                  {Object.entries(latestEval.measurements).filter(([k]) => ['rightArm', 'leftArm', 'rightThigh', 'leftThigh', 'rightCalf', 'leftCalf'].includes(k)).map(([key, value]) => (
+                    <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                      <span className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className="font-bold">{value} cm</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="col-span-full py-12 text-center text-slate-400">
+              Sem dados de medidas nesta avaliação recente.
             </div>
-          </div>
+          )}
         </div>
       )}
 

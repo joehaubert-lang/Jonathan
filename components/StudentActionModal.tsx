@@ -1,12 +1,14 @@
+
 import React from 'react';
-import { X, Trash2, Ban } from 'lucide-react';
+import { X, Trash2, Ban, CheckCircle2 } from 'lucide-react';
 
 interface StudentActionModalProps {
     isOpen: boolean;
     onClose: () => void;
     studentName: string;
     onDelete: () => void;
-    onInactivate: () => void;
+    onToggleStatus: () => void;
+    isInactive: boolean;
 }
 
 const StudentActionModal: React.FC<StudentActionModalProps> = ({
@@ -14,7 +16,8 @@ const StudentActionModal: React.FC<StudentActionModalProps> = ({
     onClose,
     studentName,
     onDelete,
-    onInactivate
+    onToggleStatus,
+    isInactive
 }) => {
     if (!isOpen) return null;
 
@@ -35,10 +38,14 @@ const StudentActionModal: React.FC<StudentActionModalProps> = ({
 
                     <div className="space-y-3">
                         <button
-                            onClick={() => { onInactivate(); onClose(); }}
-                            className="w-full flex items-center justify-center gap-2 bg-orange-50 text-orange-600 font-bold py-3 rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors"
+                            onClick={() => { onToggleStatus(); onClose(); }}
+                            className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-xl border transition-colors ${isInactive
+                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100'
+                                    : 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100'
+                                }`}
                         >
-                            <Ban size={18} /> Inativar Aluno
+                            {isInactive ? <CheckCircle2 size={18} /> : <Ban size={18} />}
+                            {isInactive ? 'Ativar Aluno' : 'Inativar Aluno'}
                         </button>
 
                         <button
