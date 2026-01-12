@@ -133,16 +133,16 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
     };
 
     const handleFinish = () => {
-        // Calculate BF% if Pollock
-        // For now just pass data
         onSave({
+            id: initialData?.id, // Pass ID if editing
             protocol,
             ...formData,
             gender,
-            photos, // Include photos in save
-            date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+            photos,
+            date: initialData?.date || new Date().toISOString() // Preserve date if editing
         });
-        onClose();
+        // We don't close here automatically depending on parent logic, but usually yes
+        // Parent handles closing
     };
 
     const steps = [
@@ -435,7 +435,11 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                             {photos[side.id as keyof typeof photos] ? (
                                                 <div className="relative w-full h-full">
                                                     <img
-                                                        src={URL.createObjectURL(photos[side.id as keyof typeof photos]!)}
+                                                        src={
+                                                            typeof photos[side.id as keyof typeof photos] === 'string'
+                                                                ? photos[side.id as keyof typeof photos] as string
+                                                                : URL.createObjectURL(photos[side.id as keyof typeof photos] as File)
+                                                        }
                                                         alt={side.label}
                                                         className="w-full h-full object-cover rounded-xl"
                                                     />

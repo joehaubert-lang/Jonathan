@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Ruler, Weight, Scissors, ChevronRight, BarChart2, Camera, Info, Plus, Calendar, TrendingUp, TrendingDown, Search, ArrowLeft, Maximize2, Sparkles, User, Clock, Filter, Grid, ShieldAlert, CheckCircle, MoreVertical, Trash2, Pencil, X } from 'lucide-react';
+import { Ruler, Weight, Scissors, ChevronRight, BarChart2, Camera, Info, Plus, Calendar, TrendingUp, TrendingDown, Search, ArrowLeft, Maximize2, Sparkles, User, Clock, Filter, Grid, ShieldAlert, CheckCircle, MoreVertical, Trash2, Pencil, X, Printer } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 // import { analyzePosture } from '../services/geminiService'; // Commented out generated service
 import NewEvaluationWizard from '../components/NewEvaluationWizard';
@@ -112,6 +112,24 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   const [postureReport, setPostureReport] = useState<any | null>(null);
   const [showGrid, setShowGrid] = useState(true);
 
+  // Comparison State
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+
+  const toggleComparisonSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setComparisonIds(prev => {
+      if (prev.includes(id)) return prev.filter(p => p !== id);
+      if (prev.length >= 2) {
+        // If 2 are already selected, replace the first one (FIFO) or just block? 
+        // User flow: Unselect one to select another usually.
+        // Let's replace the oldest selection (first index) to make it fluid
+        return [prev[1], id];
+      }
+      return [...prev, id];
+    });
+  };
+
   // Initial Fetch of Students
   useEffect(() => {
     fetchStudents();
@@ -197,52 +215,72 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
       if (data.photos) {
         for (const [key, file] of Object.entries(data.photos)) {
           if (file instanceof File) {
+            // New upload
             const path = `${selectedStudent.id}/${timestamp}_${key}.${file.name.split('.').pop()}`;
             const url = await uploadPhoto(file, path);
             if (url) photoUrls[key] = url;
+          } else if (typeof file === 'string') {
+            // Keep existing URL
+            photoUrls[key] = file;
           }
         }
       }
 
-      // 2. Save Evaluation Record
-      const { error } = await supabase
-        .from('evaluations')
-        .insert([{
-          student_id: selectedStudent.id,
-          date: new Date().toISOString(),
-          weight: parseFloat(data.weight),
-          height: parseFloat(data.height),
-          body_fat: parseFloat(data.bf || '0'),
-          measurements: {
-            muscle_mass: parseFloat(data.muscleMass || '0'),
-            visceral_fat: parseFloat(data.visceralFat || '0'),
-            chest: data.chest,
-            abdomen: data.abdomen,
-            thigh: data.thigh,
-            triceps: data.triceps,
-            suprailiac: data.suprailiac,
-            subscapular: data.subscapular,
-            axillary: data.axillary,
-            neck: data.neck,
-            shoulder: data.shoulder,
-            chestCirc: data.chestCirc,
-            waist: data.waist,
-            abdomenCirc: data.abdomenCirc,
-            hip: data.hip,
-            rightArm: data.rightArm,
-            leftArm: data.leftArm,
-            rightThigh: data.rightThigh,
-            leftThigh: data.leftThigh,
-            rightCalf: data.rightCalf,
-            leftCalf: data.leftCalf
-          },
-          photos: photoUrls
-        }]);
+      // 2. Prepare Record Payload
+      const payload = {
+        student_id: selectedStudent.id,
+        date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(), // Use existing date if editing
+        protocol: data.protocol, // Save Method
+        weight: parseFloat(data.weight),
+        height: parseFloat(data.height),
+        body_fat: parseFloat(data.bf || '0'),
+        measurements: {
+          muscle_mass: parseFloat(data.muscleMass || '0'),
+          visceral_fat: parseFloat(data.visceralFat || '0'),
+          chest: data.chest,
+          abdomen: data.abdomen,
+          thigh: data.thigh,
+          triceps: data.triceps,
+          suprailiac: data.suprailiac,
+          subscapular: data.subscapular,
+          axillary: data.axillary,
+          neck: data.neck,
+          shoulder: data.shoulder,
+          chestCirc: data.chestCirc,
+          waist: data.waist,
+          abdomenCirc: data.abdomenCirc,
+          hip: data.hip,
+          rightArm: data.rightArm,
+          leftArm: data.leftArm,
+          rightThigh: data.rightThigh,
+          leftThigh: data.leftThigh,
+          rightCalf: data.rightCalf,
+          leftCalf: data.leftCalf
+        },
+        photos: photoUrls
+      };
+
+      let error;
+      if (data.id) {
+        // UPDATE
+        const { error: updateError } = await supabase
+          .from('evaluations')
+          .update(payload)
+          .eq('id', data.id);
+        error = updateError;
+      } else {
+        // INSERT
+        const { error: insertError } = await supabase
+          .from('evaluations')
+          .insert([payload]);
+        error = insertError;
+      }
 
       if (error) throw error;
 
       await fetchEvaluations(selectedStudent.id);
       setWizardOpen(false);
+      setEditingEval(null); // Clear edit state
 
     } catch (error) {
       console.error('Error saving evaluation:', error);
@@ -251,8 +289,9 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   };
 
   const handleEditEvaluation = (evalItem: any) => {
-    setEditingEval(evalItem);
-    setIsModalOpen(true);
+    // Open Wizard in Edit Mode
+    setEditingEval(evalItem); // Pass full object to wizard
+    setWizardOpen(true);
     setActiveMenuId(null);
   };
 
@@ -410,18 +449,13 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   return (
     <div className="space-y-6 animate-in slide-in-from-right-4 duration-500" onClick={() => setActiveMenuId(null)}>
 
-      <EvaluationModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        evaluation={editingEval}
-        onSave={handleSaveEdit}
-      />
-
+      {/* Reusing Wizard for Add AND Edit */}
       <NewEvaluationWizard
         isOpen={wizardOpen}
-        onClose={() => setWizardOpen(false)}
+        onClose={() => { setWizardOpen(false); setEditingEval(null); }}
         student={selectedStudent}
         onSave={handleSaveNewEvaluation}
+        initialData={editingEval} // Pass data if editing
       />
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -435,11 +469,214 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setWizardOpen(true)} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
+          <button onClick={() => { setEditingEval(null); setWizardOpen(true); }} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95">
             <Plus size={18} /> Nova Avaliação
           </button>
         </div>
       </header>
+
+
+      {showComparison && comparisonIds.length === 2 && (
+        <>
+          <style>
+            {`
+                    @media print {
+                        @page {
+                            size: auto;
+                            margin: 10mm;
+                        }
+                        
+                        /* Hide everything by default */
+                        body {
+                            visibility: hidden;
+                            overflow: visible !important;
+                            height: auto !important;
+                        }
+                        
+                        /* Target the overlay wrapper */
+                        #comparison-overlay {
+                            visibility: visible !important;
+                            position: absolute !important;
+                            inset: 0 !important;
+                            top: 0 !important;
+                            left: 0 !important;
+                            width: 100% !important;
+                            height: auto !important;
+                            z-index: 9999;
+                            background: white !important;
+                            display: block !important; /* Disable flex centering */
+                            overflow: visible !important;
+                            padding: 0 !important;
+                        }
+
+                        /* Target the modal itself */
+                        #comparison-modal {
+                            visibility: visible !important;
+                            position: relative !important;
+                            width: 100% !important;
+                            height: auto !important;
+                            max-height: none !important;
+                            overflow: visible !important;
+                            box-shadow: none !important;
+                            border: none !important;
+                            margin: 0 !important;
+                            display: block !important; /* Disable flex col */
+                        }
+
+                        /* Target ALL children to ensure they expand */
+                        #comparison-modal * {
+                            visibility: visible !important;
+                            overflow: visible !important;
+                            height: auto !important;
+                            max-height: none !important;
+                        }
+                        
+                        /* Specifically hide the scrollbar track/thumb if visible */
+                        ::-webkit-scrollbar {
+                            display: none;
+                        }
+
+                        .no-print {
+                            display: none !important;
+                        }
+
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                    }
+                `}
+          </style>
+          <div id="comparison-overlay" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in">
+            <div id="comparison-modal" className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <Scissors className="rotate-90 text-indigo-600" /> Comparativo de Avaliações
+                  </h3>
+                  <p className="text-slate-500 text-sm">Análise lado a lado da evolução do aluno</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="no-print flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition-all shadow-lg"
+                  >
+                    <Printer size={16} /> Exportar PDF
+                  </button>
+                  <button onClick={() => setShowComparison(false)} className="no-print h-10 w-10 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all">
+                    <X size={20} className="text-slate-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto p-6 bg-slate-50/50">
+                {/* ... content ... */}
+                {(() => {
+                  // ... existing render logic ...
+                  // Get selected evaluations sorted by date (oldest -> newest for left -> right comparison)
+                  const [id1, id2] = comparisonIds;
+                  const allEvals = evaluations.filter(e => e.id === id1 || e.id === id2);
+                  const sorted = allEvals.sort((a, b) => new Date(a.date || a.created_at).getTime() - new Date(b.date || b.created_at).getTime());
+                  const oldEval = sorted[0];
+                  const newEval = sorted[1];
+
+                  const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
+                  const renderDelta = (oldVal: number, newVal: number, inverse = false) => {
+                    const delta = newVal - oldVal;
+                    const isPositive = delta > 0;
+                    const isZero = delta === 0;
+                    // If inverse is true (e.g. Body Fat), negative delta is GOOD (green)
+                    // Standard (e.g. Muscle), positive delta is GOOD (green)
+                    let colorClass = 'text-slate-400';
+                    if (!isZero) {
+                      const isGood = inverse ? delta < 0 : delta > 0;
+                      colorClass = isGood ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50';
+                    }
+
+                    return (
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-0.5 w-fit ${colorClass}`}>
+                        {!isZero && (delta > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />)}
+                        {delta > 0 ? '+' : ''}{delta.toFixed(1).replace('.', ',')}
+                      </span>
+                    );
+                  };
+
+                  return (
+                    <div className="space-y-8">
+                      {/* Header Grid */}
+                      <div className="grid grid-cols-4 gap-4 text-center">
+                        <div className="col-start-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                          <p className="text-xs font-bold text-slate-400 uppercase">Anterior</p>
+                          <p className="font-bold text-lg text-slate-700">{formatDate(oldEval.date || oldEval.created_at)}</p>
+                        </div>
+                        <div className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-200 text-white transform scale-105">
+                          <p className="text-xs font-bold text-indigo-200 uppercase">Atual</p>
+                          <p className="font-bold text-lg">{formatDate(newEval.date || newEval.created_at)}</p>
+                        </div>
+                        <div className="flex items-center justify-center font-bold text-slate-400 text-sm italic">
+                          Diferença
+                        </div>
+                      </div>
+
+                      {/* Main Metrics */}
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700">Composição Corporal</div>
+                        <div className="divide-y divide-slate-100">
+                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600">Peso (kg)</span>
+                            <span className="text-center font-medium opacity-60">{oldEval.weight}</span>
+                            <span className="text-center font-bold text-slate-800">{newEval.weight}</span>
+                            <div className="flex justify-center">{renderDelta(oldEval.weight, newEval.weight, true)}</div> {/* Usually logic: weight neutral? Let's assume inverse for now or neutral. Actually weight loss is standard goal */}
+                          </div>
+                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600">Gordura Corporal (%)</span>
+                            <span className="text-center font-medium opacity-60">{oldEval.body_fat || '-'}</span>
+                            <span className="text-center font-bold text-slate-800">{newEval.body_fat || '-'}</span>
+                            <div className="flex justify-center">{renderDelta(oldEval.body_fat || 0, newEval.body_fat || 0, true)}</div>
+                          </div>
+                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600">Massa Muscular (kg)</span>
+                            <span className="text-center font-medium opacity-60">{oldEval.measurements?.muscle_mass || '-'}</span>
+                            <span className="text-center font-bold text-slate-800">{newEval.measurements?.muscle_mass || '-'}</span>
+                            <div className="flex justify-center">{renderDelta(oldEval.measurements?.muscle_mass || 0, newEval.measurements?.muscle_mass || 0, false)}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Measurements */}
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700">Perímetros (cm)</div>
+                        <div className="divide-y divide-slate-100">
+                          {['chestCirc', 'waist', 'abdomenCirc', 'hip', 'rightArm', 'leftArm', 'rightThigh', 'leftThigh'].map(key => {
+                            const labelMap: any = { chestCirc: 'Peitoral', waist: 'Cintura', abdomenCirc: 'Abdômen', hip: 'Quadril', rightArm: 'Braço Dir.', leftArm: 'Braço Esq.', rightThigh: 'Coxa Dir.', leftThigh: 'Coxa Esq.' };
+                            const v1 = parseFloat(oldEval.measurements?.[key] || 0);
+                            const v2 = parseFloat(newEval.measurements?.[key] || 0);
+                            if (!v1 && !v2) return null;
+
+                            // For Waist/Abdomen, decrease is good. For Arms/Thighs, increase usually muscle. 
+                            // Simplify: just show delta. Let user interpret context. 
+                            // Or: Waist/Abd = inverse. Others = standard.
+                            const isInverse = ['waist', 'abdomenCirc'].includes(key);
+
+                            return (
+                              <div key={key} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
+                                <span className="font-medium text-slate-600">{labelMap[key] || key}</span>
+                                <span className="text-center font-medium opacity-60">{v1 || '-'}</span>
+                                <span className="text-center font-bold text-slate-800">{v2 || '-'}</span>
+                                <div className="flex justify-center">{renderDelta(v1, v2, isInverse)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
         <button onClick={() => setActiveTab('overview')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}><BarChart2 size={16} /> Evolução</button>
@@ -484,20 +721,42 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
 
             {/* List of Recent Evaluations for Quick Edit */}
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-4">Histórico Recente</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-800">Histórico Recente</h3>
+                {comparisonIds.length === 2 && (
+                  <button
+                    onClick={() => setShowComparison(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold animate-in zoom-in"
+                  >
+                    <Scissors size={14} className="rotate-90" /> Comparar
+                  </button>
+                )}
+              </div>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {evaluations.map((ev) => (
-                  <div key={ev.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 text-xs">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-700">{new Date(ev.created_at).toLocaleDateString('pt-BR')}</span>
-                      <span className="text-slate-400">{ev.weight}kg • {ev.body_fat}% BF</span>
+                {evaluations.map((ev) => {
+                  const isSelected = comparisonIds.includes(ev.id);
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={(e) => toggleComparisonSelection(ev.id, e)}
+                      className={`flex items-center justify-between p-3 rounded-xl text-xs cursor-pointer border transition-all ${isSelected ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-transparent hover:bg-slate-100'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`h-4 w-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'}`}>
+                          {isSelected && <CheckCircle size={10} className="text-white" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-700">{new Date(ev.created_at || ev.date).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-slate-400">{ev.weight}kg • {ev.body_fat || '-'}% BF</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => handleEditEvaluation(ev)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded-lg transition-colors"><Pencil size={14} /></button>
+                        <button onClick={() => handleDeleteEvaluation(ev.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"><Trash2 size={14} /></button>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleEditEvaluation(ev)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded-lg transition-colors"><Pencil size={14} /></button>
-                      <button onClick={() => handleDeleteEvaluation(ev.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {evaluations.length === 0 && <p className="text-center text-xs text-slate-400 py-4">Nenhuma avaliação registrada.</p>}
               </div>
             </div>
