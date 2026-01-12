@@ -38,9 +38,11 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
         }
     }, [isOpen, student.gender]);
 
+
     // Form Data
     const [formData, setFormData] = useState({
         // Standard
+        age: '',
         weight: '',
         height: '',
         // Skinfolds (mm)
@@ -243,6 +245,17 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                         </div>
                                     </div>
 
+                                    <div className="col-span-2 space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Idade (anos)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.age}
+                                            onChange={e => setFormData({ ...formData, age: e.target.value })}
+                                            className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 font-bold text-slate-800"
+                                            placeholder="Necessário para cálculo"
+                                        />
+                                    </div>
+
                                     {gender === 'masculino' && (
                                         <>
                                             <div className="space-y-1">
@@ -272,6 +285,14 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                     <div className="space-y-1">
                                         <label className="text-xs font-bold text-slate-500 uppercase">Coxa (mm)</label>
                                         <input type="number" value={formData.thigh} onChange={e => setFormData({ ...formData, thigh: e.target.value })} className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500" />
+                                    </div>
+
+                                    <div className="col-span-2 bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-bold text-indigo-500 uppercase">Gordura Corporal (Estimada)</p>
+                                            <p className="text-xs text-indigo-400">Pollock 3 Dobras</p>
+                                        </div>
+                                        <p className="text-2xl font-bold text-indigo-700">{formData.bf || '--'}%</p>
                                     </div>
                                 </div>
                             )}
