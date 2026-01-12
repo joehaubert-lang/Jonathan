@@ -7,12 +7,14 @@ interface NewEvaluationWizardProps {
     onClose: () => void;
     student: Student; // Need student for gender logic
     onSave: (data: any) => void;
+    initialData?: any; // For editing
+    isSaving?: boolean;
 }
 
 type Protocol = 'pollock3' | 'pollock7' | 'bioimpedance' | 'custom';
 type SetupStep = 1 | 2 | 3 | 4 | 5;
 
-const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClose, student, onSave }) => {
+const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClose, student, onSave, initialData, isSaving = false }) => {
     const [step, setStep] = useState<SetupStep>(1);
     const [protocol, setProtocol] = useState<Protocol | null>(null);
     const [gender, setGender] = useState<'masculino' | 'feminino'>(student.gender || 'masculino');
@@ -32,11 +34,65 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
     useEffect(() => {
         if (isOpen) {
             setStep(1);
-            setProtocol(null);
-            setGender(student.gender || 'masculino');
-            setPhotos({ front: null, back: null, right: null, left: null });
+            if (initialData) {
+                // Edit Mode
+                setProtocol(initialData.protocol || 'custom');
+                setGender((initialData.gender as any) || student.gender || 'masculino');
+
+                // Pre-fill photos if they exist
+                setPhotos({
+                    front: initialData.photos?.front || null,
+                    back: initialData.photos?.back || null,
+                    right: initialData.photos?.right || null,
+                    left: initialData.photos?.left || null
+                });
+
+                // Pre-fill form data
+                setFormData({
+                    age: initialData.age?.toString() || '', // Assuming age might be missing in DB or calculated
+                    weight: initialData.weight?.toString() || '',
+                    height: initialData.height?.toString() || '',
+                    // Skinfolds
+                    chest: initialData.measurements?.chest || '',
+                    abdomen: initialData.measurements?.abdomen || '',
+                    thigh: initialData.measurements?.thigh || '',
+                    triceps: initialData.measurements?.triceps || '',
+                    suprailiac: initialData.measurements?.suprailiac || '',
+                    subscapular: initialData.measurements?.subscapular || '',
+                    axillary: initialData.measurements?.axillary || '',
+                    // Bioimpedance
+                    bf: initialData.body_fat?.toString() || '',
+                    muscleMass: initialData.measurements?.muscle_mass?.toString() || '',
+                    visceralFat: initialData.measurements?.visceral_fat?.toString() || '',
+                    // Perimeters
+                    neck: initialData.measurements?.neck || '',
+                    shoulder: initialData.measurements?.shoulder || '',
+                    chestCirc: initialData.measurements?.chestCirc || '',
+                    waist: initialData.measurements?.waist || '',
+                    abdomenCirc: initialData.measurements?.abdomenCirc || '',
+                    hip: initialData.measurements?.hip || '',
+                    rightArm: initialData.measurements?.rightArm || '',
+                    leftArm: initialData.measurements?.leftArm || '',
+                    rightThigh: initialData.measurements?.rightThigh || '',
+                    leftThigh: initialData.measurements?.leftThigh || '',
+                    rightCalf: initialData.measurements?.rightCalf || '',
+                    leftCalf: initialData.measurements?.leftCalf || '',
+                });
+
+            } else {
+                // New Evaluation Mode
+                setProtocol(null);
+                setGender(student.gender || 'masculino');
+                setPhotos({ front: null, back: null, right: null, left: null });
+                setFormData({
+                    age: '', weight: '', height: '',
+                    chest: '', abdomen: '', thigh: '', triceps: '', suprailiac: '', subscapular: '', axillary: '',
+                    bf: '', muscleMass: '', visceralFat: '',
+                    neck: '', shoulder: '', chestCirc: '', waist: '', abdomenCirc: '', hip: '', rightArm: '', leftArm: '', rightThigh: '', leftThigh: '', rightCalf: '', leftCalf: ''
+                });
+            }
         }
-    }, [isOpen, student.gender]);
+    }, [isOpen, student.gender, initialData]);
 
 
     // Form Data
@@ -518,7 +574,7 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                     {step < 5 ? (
                         <button
                             onClick={handleNext}
-                            disabled={step === 1 && !protocol}
+                            disabled={(step === 1 && !protocol) || isSaving}
                             className="flex items-center gap-2 px-8 py-3 rounded-xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Próximo <ChevronRight size={18} />
@@ -526,9 +582,11 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                     ) : (
                         <button
                             onClick={handleFinish}
-                            className="flex items-center gap-2 px-8 py-3 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                            disabled={isSaving}
+                            className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700'}`}
                         >
-                            <Save size={18} /> Salvar Avaliação
+                            {isSaving ? <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span> : <Save size={18} />}
+                            {isSaving ? 'Salvando...' : 'Salvar Avaliação'}
                         </button>
                     )}
                 </div>

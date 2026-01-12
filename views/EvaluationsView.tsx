@@ -187,6 +187,8 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
 
   // --- Actions ---
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const uploadPhoto = async (file: File, path: string) => {
     const { data, error } = await supabase.storage
       .from('evaluation-photos')
@@ -205,7 +207,8 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   };
 
   const handleSaveNewEvaluation = async (data: any) => {
-    if (!selectedStudent) return;
+    if (!selectedStudent || isSaving) return;
+    setIsSaving(true); // Start loading
 
     try {
       // 1. Upload Photos first
@@ -281,10 +284,11 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
       await fetchEvaluations(selectedStudent.id);
       setWizardOpen(false);
       setEditingEval(null); // Clear edit state
-
     } catch (error) {
       console.error('Error saving evaluation:', error);
-      alert('Erro ao salvar avaliação. Verifique se todos os campos obrigatórios estão preenchidos.');
+      alert('Erro ao salvar avaliação. Tente novamente.');
+    } finally {
+      setIsSaving(false); // Stop loading
     }
   };
 
@@ -456,6 +460,7 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
         student={selectedStudent}
         onSave={handleSaveNewEvaluation}
         initialData={editingEval} // Pass data if editing
+        isSaving={isSaving} // Disable button while saving
       />
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -711,7 +716,9 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           </div>
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Atuais</h3>
+              <h3 className="text-sm font-bold text-slate-800 mb-4">Métricas Atuais
+                {latestEval?.protocol && <span className="ml-2 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] uppercase">{latestEval.protocol === 'pollock3' ? 'Pollock 3' : latestEval.protocol === 'pollock7' ? 'Pollock 7' : latestEval.protocol}</span>}
+              </h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Gordura Corporal</span><span className="text-sm font-bold text-indigo-600">{latestEval?.body_fat || '-'}%</span></div>
                 <div className="flex justify-between items-center"><span className="text-xs text-slate-500">Peso Atual</span><span className="text-sm font-bold text-slate-800">{latestEval?.weight || '-'} kg</span></div>
