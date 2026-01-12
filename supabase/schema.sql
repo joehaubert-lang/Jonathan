@@ -58,6 +58,7 @@ create table public.evaluations (
   height numeric not null,
   body_fat numeric,
   measurements jsonb default '{}'::jsonb, -- Store dynamic measurements
+  photos jsonb default '{}'::jsonb, -- Store photo URLs { front: 'url', ... }
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 

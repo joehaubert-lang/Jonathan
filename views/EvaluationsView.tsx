@@ -169,22 +169,53 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
 
   // --- Actions ---
 
+  const uploadPhoto = async (file: File, path: string) => {
+    const { data, error } = await supabase.storage
+      .from('evaluation-photos')
+      .upload(path, file);
+
+    if (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('evaluation-photos')
+      .getPublicUrl(path);
+
+    return publicUrl;
+  };
+
   const handleSaveNewEvaluation = async (data: any) => {
     if (!selectedStudent) return;
 
     try {
+      // 1. Upload Photos first
+      const photoUrls: any = {};
+      const timestamp = Date.now();
+
+      if (data.photos) {
+        for (const [key, file] of Object.entries(data.photos)) {
+          if (file instanceof File) {
+            const path = `${selectedStudent.id}/${timestamp}_${key}.${file.name.split('.').pop()}`;
+            const url = await uploadPhoto(file, path);
+            if (url) photoUrls[key] = url;
+          }
+        }
+      }
+
+      // 2. Save Evaluation Record
       const { error } = await supabase
         .from('evaluations')
         .insert([{
           student_id: selectedStudent.id,
-          date: new Date().toISOString(), // Using ISO string for general compatibility
+          date: new Date().toISOString(),
           weight: parseFloat(data.weight),
           height: parseFloat(data.height),
-          body_fat: parseFloat(data.bf || '0'), // Renamed from fat_percentage
-          // Store extra metrics and measurements in JSONB
+          body_fat: parseFloat(data.bf || '0'),
           measurements: {
-            muscle_mass: parseFloat(data.muscleMass || '0'), // Moved into measurements
-            visceral_fat: parseFloat(data.visceralFat || '0'), // Moved into measurements
+            muscle_mass: parseFloat(data.muscleMass || '0'),
+            visceral_fat: parseFloat(data.visceralFat || '0'),
             chest: data.chest,
             abdomen: data.abdomen,
             thigh: data.thigh,
@@ -205,19 +236,17 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
             rightCalf: data.rightCalf,
             leftCalf: data.leftCalf
           },
-          // For now, ignoring photo upload logic to supabase storage as it wasn't strictly requested yet and requires bucket setup
-          // photos: ... 
+          photos: photoUrls
         }]);
 
       if (error) throw error;
 
-      // Refresh evaluations
       await fetchEvaluations(selectedStudent.id);
       setWizardOpen(false);
 
     } catch (error) {
       console.error('Error saving evaluation:', error);
-      alert('Erro ao salvar avaliação. Verifique se todos os campos obrigatórios (Peso, Altura) estão preenchidos.');
+      alert('Erro ao salvar avaliação. Verifique se todos os campos obrigatórios estão preenchidos.');
     }
   };
 
@@ -483,23 +512,43 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
               <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <h3 className="font-bold text-slate-800 mb-4">Perímetros (cm)</h3>
                 <div className="space-y-3">
-                  {Object.entries(latestEval.measurements).filter(([k]) => ['chestCirc', 'waist', 'abdomenCirc', 'hip', 'neck', 'shoulder'].includes(k)).map(([key, value]) => (
-                    <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                      <span className="text-sm font-medium capitalize">{key.replace('Circ', '')}</span>
-                      <span className="font-bold">{value} cm</span>
-                    </div>
-                  ))}
+                  {Object.entries(latestEval.measurements).filter(([k]) => ['chestCirc', 'waist', 'abdomenCirc', 'hip', 'neck', 'shoulder'].includes(k)).map(([key, value]) => {
+                    const translations: { [key: string]: string } = {
+                      chestCirc: 'Peitoral',
+                      waist: 'Cintura',
+                      abdomenCirc: 'Abdômen',
+                      hip: 'Quadril',
+                      neck: 'Pescoço',
+                      shoulder: 'Ombros'
+                    };
+                    return (
+                      <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                        <span className="text-sm font-medium capitalize">{translations[key] || key}</span>
+                        <span className="font-bold">{value} cm</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                 <h3 className="font-bold text-slate-800 mb-4">Membros (cm)</h3>
                 <div className="space-y-3">
-                  {Object.entries(latestEval.measurements).filter(([k]) => ['rightArm', 'leftArm', 'rightThigh', 'leftThigh', 'rightCalf', 'leftCalf'].includes(k)).map(([key, value]) => (
-                    <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
-                      <span className="text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      <span className="font-bold">{value} cm</span>
-                    </div>
-                  ))}
+                  {Object.entries(latestEval.measurements).filter(([k]) => ['rightArm', 'leftArm', 'rightThigh', 'leftThigh', 'rightCalf', 'leftCalf'].includes(k)).map(([key, value]) => {
+                    const translations: { [key: string]: string } = {
+                      rightArm: 'Braço Direito',
+                      leftArm: 'Braço Esquerdo',
+                      rightThigh: 'Coxa Direita',
+                      leftThigh: 'Coxa Esquerda',
+                      rightCalf: 'Panturrilha Dir.',
+                      leftCalf: 'Panturrilha Esq.'
+                    };
+                    return (
+                      <div key={key} className="flex justify-between p-3 bg-slate-50 rounded-lg">
+                        <span className="text-sm font-medium capitalize">{translations[key] || key}</span>
+                        <span className="font-bold">{value} cm</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>
@@ -536,13 +585,19 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
               {[
-                { label: 'Anterior (Frente)', url: 'https://picsum.photos/seed/frente/400/600' },
-                { label: 'Lateral (Perfil)', url: 'https://picsum.photos/seed/perfil/400/600' },
-              ].map((pose, idx) => (
-                <div key={idx} className="space-y-3">
+                { label: 'Anterior (Frente)', key: 'front' },
+                { label: 'Posterior (Costas)', key: 'back' },
+                { label: 'Perfil Direito', key: 'right' },
+                { label: 'Perfil Esquerdo', key: 'left' }
+              ].map((pose) => (
+                <div key={pose.key} className="space-y-3">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{pose.label}</span>
                   <div className="relative rounded-2xl overflow-hidden shadow-2xl aspect-[3/4] bg-slate-200">
-                    <img src={pose.url} className="w-full h-full object-cover" alt={pose.label} />
+                    {latestEval?.photos?.[pose.key] ? (
+                      <img src={latestEval.photos[pose.key]} className="w-full h-full object-cover" alt={pose.label} />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-xs">Sem foto</div>
+                    )}
                     {showGrid && <PostureGrid />}
                   </div>
                 </div>
