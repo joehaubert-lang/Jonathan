@@ -72,6 +72,48 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
         leftCalf: '',
     });
 
+    // Pollock 3 Calculation
+    useEffect(() => {
+        if (protocol !== 'pollock3') return;
+
+        const age = parseFloat(formData.age);
+        if (!age || isNaN(age)) return;
+
+        let sum = 0;
+        let density = 0;
+
+        if (gender === 'masculino') {
+            // Chest, Abdomen, Thigh
+            const chest = parseFloat(formData.chest);
+            const abdomen = parseFloat(formData.abdomen);
+            const thigh = parseFloat(formData.thigh);
+
+            if (chest && abdomen && thigh) {
+                sum = chest + abdomen + thigh;
+                // Formula: 1.10938 - (0.0008267 * sum) + (0.0000016 * sum^2) - (0.0002574 * age)
+                density = 1.10938 - (0.0008267 * sum) + (0.0000016 * (sum * sum)) - (0.0002574 * age);
+            }
+        } else {
+            // Triceps, Suprailiac, Thigh
+            const triceps = parseFloat(formData.triceps);
+            const suprailiac = parseFloat(formData.suprailiac);
+            const thigh = parseFloat(formData.thigh);
+
+            if (triceps && suprailiac && thigh) {
+                sum = triceps + suprailiac + thigh;
+                // Formula: 1.0994921 - (0.0009929 * sum) + (0.0000023 * sum^2) - (0.0001392 * age)
+                density = 1.0994921 - (0.0009929 * sum) + (0.0000023 * (sum * sum)) - (0.0001392 * age);
+            }
+        }
+
+        if (density > 0) {
+            // Siri Equation: (495 / Density) - 450
+            const bf = (495 / density) - 450;
+            setFormData(prev => ({ ...prev, bf: bf > 0 ? bf.toFixed(1) : '' }));
+        }
+
+    }, [formData.age, formData.chest, formData.abdomen, formData.thigh, formData.triceps, formData.suprailiac, protocol, gender]);
+
     if (!isOpen) return null;
 
     const handleNext = () => {
