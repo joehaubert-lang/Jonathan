@@ -13,6 +13,31 @@ export interface Student {
   gender?: 'masculino' | 'feminino';
 }
 
+export interface Workout {
+  id: string;
+  student_id: string;
+  name: string;
+  goal?: string;
+  frequency?: string;
+  start_date?: string;
+  end_date?: string;
+  active: boolean;
+  exercises?: Exercise[];
+  created_at?: string;
+}
+
+export interface Exercise {
+  id: string;
+  workout_id: string;
+  name: string;
+  sets?: number;
+  reps?: string;
+  load?: string;
+  rest?: string;
+  observation?: string;
+  order_index?: number;
+}
+
 export interface Exercise {
   id: string;
   name: string;

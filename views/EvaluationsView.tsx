@@ -154,7 +154,8 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
         goal: s.goal,
         plan: s.plan,
         phone: s.phone,
-        gender: s.gender
+        gender: s.gender,
+        birth_date: s.birth_date
       }));
       setStudents(mappedStudents);
 

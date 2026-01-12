@@ -84,15 +84,30 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                 setProtocol(null);
                 setGender(student.gender || 'masculino');
                 setPhotos({ front: null, back: null, right: null, left: null });
+
+                // Calculate Age
+                let calculatedAge = '';
+                if (student.birth_date) {
+                    const birthDate = new Date(student.birth_date);
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    calculatedAge = age.toString();
+                }
+
                 setFormData({
-                    age: '', weight: '', height: '',
+                    age: calculatedAge,
+                    weight: '', height: '',
                     chest: '', abdomen: '', thigh: '', triceps: '', suprailiac: '', subscapular: '', axillary: '',
                     bf: '', muscleMass: '', visceralFat: '',
                     neck: '', shoulder: '', chestCirc: '', waist: '', abdomenCirc: '', hip: '', rightArm: '', leftArm: '', rightThigh: '', leftThigh: '', rightCalf: '', leftCalf: ''
                 });
             }
         }
-    }, [isOpen, student.gender, initialData]);
+    }, [isOpen, student.gender, student.birth_date, initialData]);
 
 
     // Form Data

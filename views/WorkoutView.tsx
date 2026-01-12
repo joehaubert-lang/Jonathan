@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Play, Trash2, Bookmark, Search, Clock, PlusCircle, Save, Dumbbell, RotateCcw, User, X, ChevronLeft, AlertCircle, List, Send, PlayCircle, Pencil, Link as LinkIcon, Video, Calendar, CheckCircle2, Copy } from 'lucide-react';
 import { generateWorkoutSplit } from '../services/geminiService';
 
+import { supabase } from '../services/supabaseClient';
+import { Student, Workout, Exercise } from '../types';
+
 // Biblioteca de Vídeos Padrão da Plataforma (IDs Reais do YouTube para demonstração)
 const EXERCISE_VIDEO_LIBRARY: Record<string, string> = {
   'Supino Reto': 'https://www.youtube.com/watch?v=sqOw2Y6uDWQ',
@@ -61,26 +64,98 @@ const WorkoutView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [workoutToDelete, setWorkoutToDelete] = useState<string | null>(null);
 
-  // Apply Modal State
+  // Supabase State
+  const [students, setStudents] = useState<Student[]>([]);
+  const [savedWorkouts, setSavedWorkouts] = useState<Workout[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [workoutToApply, setWorkoutToApply] = useState<any | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
-  // Mock Students for the dropdown
-  const mockStudentsList = [
-    { id: '1', name: 'Gabriel Silva' },
-    { id: '2', name: 'Ana Souza' },
-    { id: '3', name: 'Ricardo Meira' },
-    { id: '4', name: 'Mariana Costa' },
-  ];
+  // Initial Fetch
+  useEffect(() => {
+    fetchStudents();
+    fetchWorkouts();
+  }, []);
 
-  const handleApplyWorkout = () => {
+  const fetchStudents = async () => {
+    const { data } = await supabase.from('students').select('id, name').order('name');
+    if (data) setStudents(data as Student[]);
+  };
+
+  const fetchWorkouts = async () => {
+    setIsLoading(true);
+    // Fetch workouts and their exercises
+    const { data, error } = await supabase
+      .from('workouts')
+      .select('*, exercises(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching workouts:', error);
+    } else if (data) {
+      // Map exercises array to proper structure for UI
+      const formatted = data.map((w: any) => ({
+        ...w,
+        focus: w.goal, // DB uses 'goal', UI uses 'focus' (keeping UI prop for now)
+        exerciseCount: w.exercises?.length || 0,
+        exercises: w.exercises?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || []
+      }));
+      setSavedWorkouts(formatted);
+    }
+    setIsLoading(false);
+  };
+
+  const handleApplyWorkout = async () => {
     if (!selectedStudentId || !workoutToApply) return;
-    // Logic to apply workout would go here
-    console.log(`Applying workout ${workoutToApply.name} to student ${selectedStudentId}`);
-    setIsApplyModalOpen(false);
-    setWorkoutToApply(null);
-    setSelectedStudentId('');
+
+    // Save to DB
+    try {
+      // 1. Create Workout
+      const { data: newWorkout, error: workoutError } = await supabase
+        .from('workouts')
+        .insert([{
+          student_id: selectedStudentId,
+          name: workoutToApply.name,
+          goal: workoutToApply.focus || workoutToApply.goal,
+          active: true
+        }])
+        .select()
+        .single();
+
+      if (workoutError) throw workoutError;
+
+      // 2. Create Exercises
+      if (newWorkout && workoutToApply.exercises && workoutToApply.exercises.length > 0) {
+        const exercisesToInsert = workoutToApply.exercises.map((ex: any, index: number) => ({
+          workout_id: newWorkout.id,
+          name: ex.name,
+          sets: ex.sets ? parseInt(ex.sets) : 3,
+          reps: ex.reps?.toString(),
+          load: ex.weight || ex.load,
+          rest: ex.rest,
+          order_index: index
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from('exercises')
+          .insert(exercisesToInsert);
+
+        if (exercisesError) throw exercisesError;
+      }
+
+      alert('Treino aplicado com sucesso!');
+      setIsApplyModalOpen(false);
+      setWorkoutToApply(null);
+      setSelectedStudentId('');
+      fetchWorkouts(); // Refresh list
+
+    } catch (error) {
+      console.error('Error applying workout:', error);
+      alert('Erro ao aplicar treino.');
+    }
   };
 
   const ApplyModal = () => {
@@ -103,22 +178,19 @@ const WorkoutView: React.FC = () => {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Treino: <span className="font-normal text-slate-600">{workoutToApply.name}</span></label>
-              <div className="relative">
-                <select
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full appearance-none bg-white border border-indigo-200 text-slate-700 py-3.5 px-4 pr-8 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all font-medium"
-                >
-                  <option value="" disabled>Selecione um aluno...</option>
-                  {mockStudentsList.map(student => (
-                    <option key={student.id} value={student.id}>{student.name}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                  <ChevronLeft size={16} className="-rotate-90" />
-                </div>
-              </div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Selecione o Aluno</label>
+              <select
+                value={selectedStudentId}
+                onChange={(e) => setSelectedStudentId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:border-indigo-500 font-medium text-slate-600"
+              >
+                <option value="">Selecione...</option>
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="pt-2 space-y-3">
@@ -142,21 +214,7 @@ const WorkoutView: React.FC = () => {
     );
   };
 
-  const [savedWorkouts, setSavedWorkouts] = useState<any[]>([
-    {
-      id: 's1',
-      name: 'Full Body Avançado',
-      focus: 'Força e Potência',
-      exerciseCount: 2,
-      date: '12 Mar, 2024',
-      level: 'Avançado',
-      source: 'ai',
-      exercises: [
-        { name: 'Agachamento Livre', sets: 4, reps: '8', weight: '80kg', rest: '90s', muscleGroup: 'Pernas', videoUrl: 'https://www.youtube.com/watch?v=U3HlEF_E9fo' },
-        { name: 'Supino Reto', sets: 4, reps: '8', weight: '60kg', rest: '90s', muscleGroup: 'Peito', videoUrl: 'https://www.youtube.com/watch?v=sqOw2Y6uDWQ' },
-      ]
-    }
-  ]);
+
 
   const [form, setForm] = useState({
     goal: 'Hipertrofia',
@@ -222,19 +280,73 @@ const WorkoutView: React.FC = () => {
     setIsEditing(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editWorkout || !editWorkout.name) return;
-    const updatedWorkout = { ...editWorkout, exerciseCount: editWorkout.exercises.length };
-    setSavedWorkouts(prev => prev.map(w => w.id === updatedWorkout.id ? updatedWorkout : w));
-    setSelectedWorkout(updatedWorkout);
-    setIsEditing(false);
-    setEditWorkout(null);
+
+    try {
+      // 1. Update Workout Details
+      const { error: workoutError } = await supabase
+        .from('workouts')
+        .update({
+          name: editWorkout.name,
+          goal: editWorkout.focus // mapping back to DB column
+        })
+        .eq('id', editWorkout.id);
+
+      if (workoutError) throw workoutError;
+
+      // 2. Update Exercises (Strategy: Delete all and Re-insert for simplicity, or upsert. Re-insert is safer for order)
+      // For this MVP, let's just update the local state to reflect changes or implement a full re-sync.
+      // Better strategy: Delete all old exercises for this workout, then insert the new list.
+
+      const { error: deleteError } = await supabase.from('exercises').delete().eq('workout_id', editWorkout.id);
+      if (deleteError) throw deleteError;
+
+      if (editWorkout.exercises.length > 0) {
+        const exercisesToInsert = editWorkout.exercises.map((ex: any, index: number) => ({
+          workout_id: editWorkout.id,
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          load: ex.weight, // UI uses weight, DB uses load
+          rest: ex.rest,
+          order_index: index,
+          observation: ex.observation // Persist observation if exists
+        }));
+
+        const { error: insertError } = await supabase.from('exercises').insert(exercisesToInsert);
+        if (insertError) throw insertError;
+      }
+
+      alert('Treino atualizado!');
+      fetchWorkouts(); // Reload fresh data
+      setIsEditing(false);
+      setEditWorkout(null);
+      setSelectedWorkout(null);
+
+    } catch (error) {
+      console.error('Error updating workout:', error);
+      alert('Erro ao atualizar treino.');
+    }
   };
 
-  const handleDeleteWorkout = () => {
+  const handleDeleteWorkout = async () => {
     if (!workoutToDelete) return;
-    setSavedWorkouts(prev => prev.filter(w => w.id !== workoutToDelete));
-    setWorkoutToDelete(null);
+
+    try {
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutToDelete);
+
+      if (error) throw error;
+
+      setSavedWorkouts(prev => prev.filter(w => w.id !== workoutToDelete));
+      setWorkoutToDelete(null);
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      alert('Erro ao excluir treino.');
+    }
   };
 
   const filteredWorkouts = savedWorkouts.filter(w =>
@@ -455,6 +567,7 @@ const WorkoutView: React.FC = () => {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 pb-20">
         <VideoModal />
+        <ApplyModal />
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center gap-4">
             <button onClick={() => { setSelectedWorkout(null); setIsEditing(false); }} className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:text-indigo-600 border border-slate-100">
@@ -518,7 +631,7 @@ const WorkoutView: React.FC = () => {
                 <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-[10px] font-bold text-slate-400 uppercase">Frequência</span><span className="text-xs font-black">{selectedWorkout.source === 'ai' ? 'Variada' : 'Manual'}</span></div>
                 <div className="flex justify-between items-center py-2"><span className="text-[10px] font-bold text-slate-400 uppercase">Volume Total</span><span className="text-xs font-black">{selectedWorkout.exercises.length} Exercícios</span></div>
               </div>
-              <button className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20"><Send size={18} /> Prescrever ao Aluno</button>
+              <button onClick={() => { setWorkoutToApply(selectedWorkout); setIsApplyModalOpen(true); }} className="w-full mt-8 py-4 bg-indigo-600 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-900/20"><Send size={18} /> Prescrever ao Aluno</button>
             </div>
           </div>
         </div>
@@ -625,11 +738,60 @@ const WorkoutView: React.FC = () => {
                 </div>
               ))}
               <div className="col-span-full flex justify-center pt-8 pb-12">
-                <button onClick={() => {
-                  const newSaved = { id: Date.now().toString(), name: `IA: ${form.goal} (${form.selectedDays.length} dias)`, focus: form.goal, exerciseCount: generatedWorkouts.reduce((acc, curr) => acc + curr.exercises.length, 0), date: new Date().toLocaleDateString('pt-BR'), source: 'ai', exercises: generatedWorkouts.flatMap(w => w.exercises) };
-                  setSavedWorkouts([newSaved, ...savedWorkouts]);
-                  setActiveSubTab('library');
-                }} className="flex items-center gap-3 bg-indigo-600 px-10 py-5 rounded-2xl text-white font-black shadow-2xl hover:bg-indigo-700 transition-all active:scale-95"><Save size={24} /> Salvar na Biblioteca</button>
+                <button onClick={async () => {
+                  setIsLoading(true);
+                  try {
+                    // 1. Create Workout Template
+                    const { data: newWorkout, error: workoutError } = await supabase
+                      .from('workouts')
+                      .insert([{
+                        name: `IA: ${form.goal} (${form.selectedDays.length} dias)`,
+                        goal: form.goal,
+                        active: true,
+                        student_id: null, // Template
+                        source: 'ai'
+                      }])
+                      .select()
+                      .single();
+
+                    if (workoutError) throw workoutError;
+
+                    // 2. Create Exercises
+                    if (newWorkout && generatedWorkouts.length > 0) {
+                      // Flatten the day plans into a single exercise list, adding day markers
+                      const exercisesToInsert = generatedWorkouts.flatMap((dayPlan, dayIdx) =>
+                        dayPlan.exercises.map((ex: any, exIdx: number) => ({
+                          workout_id: newWorkout.id,
+                          name: ex.name,
+                          sets: 3, // AI default
+                          reps: '10-12', // AI default
+                          order_index: (dayIdx * 100) + exIdx, // Simple ordering to keep days separate visually
+                          observation: `Dia: ${dayPlan.day} - Foco: ${dayPlan.focus}`,
+                          muscle_group: 'Geral' // Default for AI exercises since we don't strictly categorize them yet
+                        }))
+                      );
+
+                      const { error: exercisesError } = await supabase
+                        .from('exercises')
+                        .insert(exercisesToInsert);
+
+                      if (exercisesError) throw exercisesError;
+                    }
+
+                    alert('Treino gerado salvo na Biblioteca!');
+                    setGeneratedWorkouts([]);
+                    setActiveSubTab('library');
+                    fetchWorkouts();
+
+                  } catch (error: any) {
+                    console.error('Error saving AI workout:', error);
+                    alert(`Erro ao salvar treino gerado: ${error.message || JSON.stringify(error)}`);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }} className="flex items-center gap-3 bg-indigo-600 px-10 py-5 rounded-2xl text-white font-black shadow-2xl hover:bg-indigo-700 transition-all active:scale-95">
+                  {isLoading ? 'Salvando...' : <><Save size={24} /> Salvar na Biblioteca</>}
+                </button>
               </div>
             </div>
           )}
@@ -726,13 +888,58 @@ const WorkoutView: React.FC = () => {
               </button>
             </div>
 
-            <button onClick={() => {
-              const newSaved = { id: Date.now().toString(), name: manualWorkout.name || 'Treino Manual', focus: manualWorkout.focus, exerciseCount: manualWorkout.exercises.length, date: new Date().toLocaleDateString('pt-BR'), source: 'manual', exercises: manualWorkout.exercises };
-              setSavedWorkouts([newSaved, ...savedWorkouts]);
-              setActiveSubTab('library');
-              setManualWorkout({ name: '', focus: 'Geral', level: 'Intermediário', exercises: [{ name: '', sets: 3, reps: '12', weight: '', rest: '60s', videoUrl: '', muscleGroup: 'Geral' }] });
+            <button onClick={async () => {
+              if (!manualWorkout.name) return alert('Dê um nome ao treino!');
+
+              setIsLoading(true);
+              try {
+                // 1. Create Workout Template (student_id is null)
+                const { data: newWorkout, error: workoutError } = await supabase
+                  .from('workouts')
+                  .insert([{
+                    name: manualWorkout.name,
+                    goal: manualWorkout.focus,
+                    active: true,
+                    student_id: null // Explicitly null for Templates
+                  }])
+                  .select()
+                  .single();
+
+                if (workoutError) throw workoutError;
+
+                // 2. Create Exercises
+                if (newWorkout && manualWorkout.exercises.length > 0) {
+                  const exercisesToInsert = manualWorkout.exercises.map((ex, index) => ({
+                    workout_id: newWorkout.id,
+                    name: ex.name,
+                    sets: ex.sets ? parseInt(ex.sets as any) : 3,
+                    reps: ex.reps,
+                    load: ex.weight,
+                    rest: ex.rest,
+                    muscle_group: ex.muscleGroup || 'Geral', // Added muscle_group
+                    order_index: index
+                  }));
+
+                  const { error: exercisesError } = await supabase
+                    .from('exercises')
+                    .insert(exercisesToInsert as any); // Type assertion if needed until types.ts is updated
+
+                  if (exercisesError) throw exercisesError;
+                }
+
+                alert('Modelo de treino salvo na Biblioteca!');
+                setManualWorkout({ name: '', focus: 'Geral', level: 'Intermediário', exercises: [{ name: '', sets: 3, reps: '12', weight: '', rest: '60s', videoUrl: '', muscleGroup: 'Geral' }] });
+                setActiveSubTab('library');
+                fetchWorkouts();
+
+              } catch (error: any) {
+                console.error('Error saving workout template:', error);
+                alert(`Erro ao salvar modelo: ${error.message || JSON.stringify(error)}`);
+              } finally {
+                setIsLoading(false);
+              }
             }} className="w-full mt-8 py-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-2xl font-black shadow-2xl hover:opacity-90 transition-all active:scale-95 flex items-center justify-center gap-2">
-              <Save size={20} /> Salvar e Finalizar Prescrição
+              {isLoading ? 'Salvando...' : <><Save size={20} /> Salvar como Modelo na Biblioteca</>}
             </button>
           </div>
         </div>
