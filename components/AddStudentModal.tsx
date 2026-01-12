@@ -15,6 +15,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
         name: '',
         email: '',
         phone: '',
+        birth_date: '',
         gender: 'masculino',
         goal: '',
         plan: 'Mensal'
@@ -26,6 +27,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                 name: studentToEdit.name,
                 email: studentToEdit.email,
                 phone: studentToEdit.phone || '',
+                birth_date: studentToEdit.birth_date || '',
                 gender: studentToEdit.gender || 'masculino',
                 goal: studentToEdit.goal || '',
                 plan: studentToEdit.plan || 'Mensal'
@@ -35,6 +37,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                 name: '',
                 email: '',
                 phone: '',
+                birth_date: '',
                 gender: 'masculino',
                 goal: '',
                 plan: 'Mensal'
@@ -88,19 +91,19 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Email */}
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-slate-700">Email</label>
-                            <input
-                                type="email"
-                                placeholder="ana@exemplo.com"
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
-                                value={formData.email}
-                                onChange={e => setFormData({ ...formData, email: e.target.value })}
-                            />
-                        </div>
+                    {/* Email */}
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-700">Email</label>
+                        <input
+                            type="email"
+                            placeholder="ana@exemplo.com"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
+                            value={formData.email}
+                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        />
+                    </div>
 
+                    <div className="grid grid-cols-2 gap-4">
                         {/* WhatsApp */}
                         <div className="space-y-1.5">
                             <label className="text-sm font-semibold text-slate-700">WhatsApp</label>
@@ -110,6 +113,17 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
                                 value={formData.phone}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Data de Nascimento */}
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-slate-700">Data de Nascimento</label>
+                            <input
+                                type="date"
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
+                                value={formData.birth_date}
+                                onChange={e => setFormData({ ...formData, birth_date: e.target.value })}
                             />
                         </div>
                     </div>

@@ -529,7 +529,7 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                     </div>
                                     <div className="text-left flex-1 min-w-0">
                                         <p className="font-bold text-slate-800 truncate">{student.name}</p>
-                                        <p className="text-xs text-slate-500 truncate">Objetivo: {student.objective || 'Não informado'}</p>
+                                        <p className="text-xs text-slate-500 truncate">Objetivo: {student.goal || 'Não informado'}</p>
                                     </div>
                                     <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
                                 </div>

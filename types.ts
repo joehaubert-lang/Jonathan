@@ -9,6 +9,7 @@ export interface Student {
   goal: string;
   plan: 'Mensal' | 'Trimestral' | 'Anual';
   phone: string;
+  birth_date?: string; // Format: YYYY-MM-DD
   gender?: 'masculino' | 'feminino';
 }
 

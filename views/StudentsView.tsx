@@ -138,7 +138,8 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
         goal: studentData.goal,
         plan: studentData.plan,
         phone: studentData.phone,
-        gender: studentData.gender
+        gender: studentData.gender,
+        birth_date: studentData.birth_date
       };
 
       let savedStudent = null;
@@ -166,7 +167,8 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
             goal: savedStudent.goal,
             plan: savedStudent.plan,
             phone: savedStudent.phone,
-            gender: savedStudent.gender
+            gender: savedStudent.gender,
+            birth_date: savedStudent.birth_date
           } : s));
         }
 
