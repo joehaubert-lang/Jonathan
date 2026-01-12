@@ -15,8 +15,9 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
         name: '',
         email: '',
         phone: '',
-        age: '',
-        gender: 'masculino'
+        gender: 'masculino',
+        goal: '',
+        plan: 'Mensal'
     });
 
     useEffect(() => {
@@ -25,16 +26,18 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                 name: studentToEdit.name,
                 email: studentToEdit.email,
                 phone: studentToEdit.phone || '',
-                age: '25', // Mock age since it's not in Student type yet
-                gender: 'masculino'
+                gender: studentToEdit.gender || 'masculino',
+                goal: studentToEdit.goal || '',
+                plan: studentToEdit.plan || 'Mensal'
             });
         } else {
             setFormData({
                 name: '',
                 email: '',
                 phone: '',
-                age: '',
-                gender: 'masculino'
+                gender: 'masculino',
+                goal: '',
+                plan: 'Mensal'
             });
         }
     }, [studentToEdit, isOpen]);
@@ -45,7 +48,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                 ...studentToEdit,
                 ...formData,
                 id: studentToEdit?.id // Keep ID if editing
-            });
+            } as Partial<Student>); // Cast to maintain type compatibility if needed
         }
         onClose();
     };
@@ -60,7 +63,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">{studentToEdit ? 'Editar Aluno' : 'Adicionar Novo Aluno'}</h2>
                         <p className="text-sm text-slate-500 mt-1">
-                            {studentToEdit ? 'Atualize os dados de identificação.' : 'Preencha os dados básicos de identificação.'}
+                            {studentToEdit ? 'Atualize os dados do aluno.' : 'Preencha os dados do novo aluno.'}
                         </p>
                     </div>
                     <button
@@ -112,16 +115,18 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        {/* Idade */}
+                        {/* Plano */}
                         <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-slate-700">Idade</label>
-                            <input
-                                type="number"
-                                placeholder="Ex: 25"
-                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
-                                value={formData.age}
-                                onChange={e => setFormData({ ...formData, age: e.target.value })}
-                            />
+                            <label className="text-sm font-semibold text-slate-700">Plano</label>
+                            <select
+                                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 appearance-none cursor-pointer"
+                                value={formData.plan}
+                                onChange={e => setFormData({ ...formData, plan: e.target.value })}
+                            >
+                                <option value="Mensal">Mensal</option>
+                                <option value="Trimestral">Trimestral</option>
+                                <option value="Anual">Anual</option>
+                            </select>
                         </div>
 
                         {/* Gênero */}
@@ -137,6 +142,18 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({ isOpen, onClose, stud
                                 <option value="outro">Outro</option>
                             </select>
                         </div>
+                    </div>
+
+                    {/* Objetivo */}
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-semibold text-slate-700">Objetivo Principal</label>
+                        <input
+                            type="text"
+                            placeholder="Ex: Hipertrofia, Emagrecimento..."
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition-all text-slate-700 placeholder:text-slate-400"
+                            value={formData.goal}
+                            onChange={e => setFormData({ ...formData, goal: e.target.value })}
+                        />
                     </div>
 
                     <div className="pt-4">
