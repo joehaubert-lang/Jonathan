@@ -76,40 +76,48 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
     useEffect(() => {
         if (protocol !== 'pollock3') return;
 
-        const age = parseFloat(formData.age);
-        if (!age || isNaN(age)) return;
+        const parseValue = (val: string) => {
+            if (!val) return NaN;
+            return parseFloat(val.replace(',', '.'));
+        };
+
+        const age = parseValue(formData.age);
+        if (isNaN(age) || age <= 0) {
+            setFormData(prev => ({ ...prev, bf: '' })); // Clear if invalid
+            return;
+        }
 
         let sum = 0;
         let density = 0;
 
-        if (gender === 'masculino') {
-            // Chest, Abdomen, Thigh
-            const chest = parseFloat(formData.chest);
-            const abdomen = parseFloat(formData.abdomen);
-            const thigh = parseFloat(formData.thigh);
+        // Normalize gender usage
+        const currentGender = gender?.toLowerCase() || 'masculino';
 
-            if (chest && abdomen && thigh) {
+        if (currentGender === 'masculino') {
+            const chest = parseValue(formData.chest);
+            const abdomen = parseValue(formData.abdomen);
+            const thigh = parseValue(formData.thigh);
+
+            if (!isNaN(chest) && !isNaN(abdomen) && !isNaN(thigh)) {
                 sum = chest + abdomen + thigh;
-                // Formula: 1.10938 - (0.0008267 * sum) + (0.0000016 * sum^2) - (0.0002574 * age)
                 density = 1.10938 - (0.0008267 * sum) + (0.0000016 * (sum * sum)) - (0.0002574 * age);
             }
         } else {
-            // Triceps, Suprailiac, Thigh
-            const triceps = parseFloat(formData.triceps);
-            const suprailiac = parseFloat(formData.suprailiac);
-            const thigh = parseFloat(formData.thigh);
+            const triceps = parseValue(formData.triceps);
+            const suprailiac = parseValue(formData.suprailiac);
+            const thigh = parseValue(formData.thigh);
 
-            if (triceps && suprailiac && thigh) {
+            if (!isNaN(triceps) && !isNaN(suprailiac) && !isNaN(thigh)) {
                 sum = triceps + suprailiac + thigh;
-                // Formula: 1.0994921 - (0.0009929 * sum) + (0.0000023 * sum^2) - (0.0001392 * age)
                 density = 1.0994921 - (0.0009929 * sum) + (0.0000023 * (sum * sum)) - (0.0001392 * age);
             }
         }
 
         if (density > 0) {
-            // Siri Equation: (495 / Density) - 450
             const bf = (495 / density) - 450;
             setFormData(prev => ({ ...prev, bf: bf > 0 ? bf.toFixed(1) : '' }));
+        } else {
+            setFormData(prev => ({ ...prev, bf: '' }));
         }
 
     }, [formData.age, formData.chest, formData.abdomen, formData.thigh, formData.triceps, formData.suprailiac, protocol, gender]);
