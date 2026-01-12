@@ -38,8 +38,14 @@ const DashboardView: React.FC = () => {
         .from('workouts')
         .select('*', { count: 'exact', head: true });
 
-      // Estimated Revenue: Active Students * R$ 100 (Avg Ticket)
-      const estimatedRevenue = (activeStudentsCount || 0) * 100;
+      // Real Revenue: Sum of all paid incomes
+      const { data: incomeData } = await supabase
+        .from('financial_records')
+        .select('amount')
+        .eq('type', 'income')
+        .eq('status', 'paid');
+
+      const realRevenue = incomeData?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
 
       // Calculate Retention: Rule of thumb (Active / Total) * 100
       let retentionRate = 0;
@@ -50,7 +56,7 @@ const DashboardView: React.FC = () => {
       setStats({
         activeStudents: activeStudentsCount || 0,
         createdWorkouts: workoutsCount || 0,
-        revenue: estimatedRevenue,
+        revenue: realRevenue,
         retention: `${retentionRate}%`
       });
 
@@ -122,7 +128,7 @@ const DashboardView: React.FC = () => {
         {[
           { label: 'Alunos Ativos', value: stats.activeStudents.toString(), icon: Users, color: 'bg-indigo-600', trend: 'Base atual' },
           { label: 'Treinos Criados', value: stats.createdWorkouts.toString(), icon: Activity, color: 'bg-emerald-500', trend: 'Total acumulado' },
-          { label: 'Faturamento Est.', value: `R$ ${stats.revenue.toLocaleString('pt-BR')}`, icon: CreditCard, color: 'bg-violet-500', trend: 'Baseado em ativos' },
+          { label: 'Faturamento Real', value: `R$ ${stats.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: CreditCard, color: 'bg-violet-500', trend: 'Receitas pagas' },
           { label: 'Retenção', value: stats.retention, icon: TrendingUp, color: 'bg-orange-500', trend: 'Excelente' },
         ].map((stat, idx) => (
           <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">

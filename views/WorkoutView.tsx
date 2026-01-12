@@ -71,6 +71,7 @@ const WorkoutView: React.FC = () => {
 
   // Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [exerciseLibrary, setExerciseLibrary] = useState<any[]>([]);
   const [workoutToApply, setWorkoutToApply] = useState<any | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
@@ -78,6 +79,7 @@ const WorkoutView: React.FC = () => {
   useEffect(() => {
     fetchStudents();
     fetchWorkouts();
+    fetchExerciseLibrary();
   }, []);
 
   const fetchStudents = async () => {
@@ -101,11 +103,21 @@ const WorkoutView: React.FC = () => {
         ...w,
         focus: w.goal, // DB uses 'goal', UI uses 'focus' (keeping UI prop for now)
         exerciseCount: w.exercises?.length || 0,
-        exercises: w.exercises?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)) || []
+        exercises: w.exercises?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0)).map((ex: any) => ({
+          ...ex,
+          weight: ex.load, // Map DB 'load' to UI 'weight'
+          muscleGroup: ex.muscle_group, // Map DB 'muscle_group' to UI 'muscleGroup'
+          videoUrl: ex.video_url // Map DB 'video_url' to UI 'videoUrl'
+        })) || []
       }));
       setSavedWorkouts(formatted);
     }
     setIsLoading(false);
+  };
+
+  const fetchExerciseLibrary = async () => {
+    const { data } = await supabase.from('exercise_library').select('*').order('name');
+    if (data) setExerciseLibrary(data);
   };
 
   const handleApplyWorkout = async () => {
@@ -136,6 +148,7 @@ const WorkoutView: React.FC = () => {
           reps: ex.reps?.toString(),
           load: ex.weight || ex.load,
           rest: ex.rest,
+          video_url: ex.videoUrl || ex.video_url, // Carry over video URL when applying template
           order_index: index
         }));
 
@@ -464,79 +477,128 @@ const WorkoutView: React.FC = () => {
             </h3>
             <div className="space-y-4">
               {editWorkout.exercises.map((ex: any, i: number) => (
-                <div key={i} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm relative group">
-                  <div className="flex items-start gap-6">
-                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-lg shrink-0">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 space-y-6">
-                      <input
-                        type="text"
-                        value={ex.name}
-                        onChange={(e) => {
-                          const updated = [...editWorkout.exercises];
-                          updated[i].name = e.target.value;
-                          setEditWorkout({ ...editWorkout, exercises: updated });
-                        }}
-                        className="w-full font-bold text-slate-800 text-lg outline-none border-b border-slate-100 focus:border-indigo-200 pb-2 transition-all"
-                        placeholder="Nome do Exercício"
-                      />
+                <div key={i} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm relative group">
+                  <div className="grid gap-6 md:grid-cols-12">
+                    <div className="md:col-span-12">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Exercício {i + 1}</label>
+                      <div className="relative">
+                        <input
+                          list={`exercises-list-${i}`}
+                          type="text"
+                          value={ex.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = [...editWorkout.exercises];
+                            updated[i].name = val;
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Séries</label>
-                          <input
-                            type="number"
-                            value={ex.sets}
-                            onChange={(e) => {
-                              const updated = [...editWorkout.exercises];
-                              updated[i].sets = e.target.value;
-                              setEditWorkout({ ...editWorkout, exercises: updated });
-                            }}
-                            className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Reps</label>
-                          <input
-                            type="text"
-                            value={ex.reps}
-                            onChange={(e) => {
-                              const updated = [...editWorkout.exercises];
-                              updated[i].reps = e.target.value;
-                              setEditWorkout({ ...editWorkout, exercises: updated });
-                            }}
-                            className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Peso</label>
-                          <input
-                            type="text"
-                            value={ex.weight}
-                            onChange={(e) => {
-                              const updated = [...editWorkout.exercises];
-                              updated[i].weight = e.target.value;
-                              setEditWorkout({ ...editWorkout, exercises: updated });
-                            }}
-                            className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Rest</label>
-                          <input
-                            type="text"
-                            value={ex.rest}
-                            onChange={(e) => {
-                              const updated = [...editWorkout.exercises];
-                              updated[i].rest = e.target.value;
-                              setEditWorkout({ ...editWorkout, exercises: updated });
-                            }}
-                            className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                          />
-                        </div>
+                            // Auto-fill from library if match found
+                            const match = exerciseLibrary.find(lib => lib.name === val);
+                            if (match) {
+                              if (!updated[i].muscleGroup || updated[i].muscleGroup === 'Geral') updated[i].muscleGroup = match.muscle_group;
+                              if (!updated[i].videoUrl) updated[i].videoUrl = match.video_url;
+                            }
+
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          placeholder="Digite ou selecione um exercício..."
+                          className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                        />
+                        <datalist id={`exercises-list-${i}`}>
+                          {exerciseLibrary.map((lib) => (
+                            <option key={lib.id} value={lib.name} />
+                          ))}
+                        </datalist>
                       </div>
                     </div>
+
+                    <div className="md:col-span-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Séries</label>
+                        <input
+                          type="number"
+                          value={ex.sets}
+                          onChange={(e) => {
+                            const updated = [...editWorkout.exercises];
+                            updated[i].sets = parseInt(e.target.value) || 0;
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Reps</label>
+                        <input
+                          type="text"
+                          value={ex.reps}
+                          onChange={(e) => {
+                            const updated = [...editWorkout.exercises];
+                            updated[i].reps = e.target.value;
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Peso (kg)</label>
+                        <input
+                          type="text"
+                          placeholder="Opcional"
+                          value={ex.weight}
+                          onChange={(e) => {
+                            const updated = [...editWorkout.exercises];
+                            updated[i].weight = e.target.value;
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5">Descanso</label>
+                        <input
+                          type="text"
+                          value={ex.rest}
+                          onChange={(e) => {
+                            const updated = [...editWorkout.exercises];
+                            updated[i].rest = e.target.value;
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          className="w-full h-12 rounded-xl border border-slate-200 px-4 font-bold text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Video URL Input - Full Width */}
+                    <div className="md:col-span-12">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                          <LinkIcon size={14} />
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="URL do Vídeo Youtube (Vazio usa o padrão se existir)"
+                          value={ex.videoUrl || ''}
+                          onChange={(e) => {
+                            const updated = [...editWorkout.exercises];
+                            updated[i].videoUrl = e.target.value;
+                            setEditWorkout({ ...editWorkout, exercises: updated });
+                          }}
+                          className="w-full h-10 rounded-lg border-b border-slate-100 bg-slate-50 pl-9 pr-4 text-xs font-medium text-slate-600 outline-none focus:bg-white focus:border-indigo-200 transition-all placeholder:text-slate-400"
+                        />
+                        {ex.videoUrl && (
+                          <button
+                            onClick={() => {
+                              const updated = [...editWorkout.exercises];
+                              updated[i].videoUrl = '';
+                              setEditWorkout({ ...editWorkout, exercises: updated });
+                            }}
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-red-500 cursor-pointer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
 
                   <button
@@ -544,18 +606,19 @@ const WorkoutView: React.FC = () => {
                       const updated = editWorkout.exercises.filter((_: any, idx: number) => idx !== i);
                       setEditWorkout({ ...editWorkout, exercises: updated });
                     }}
-                    className="absolute bottom-6 left-6 text-red-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all"
+                    className="absolute top-6 right-6 text-slate-300 hover:text-red-500 p-2 rounded-xl transition-all"
+                    title="Remover exercício"
                   >
-                    <Trash2 size={20} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
               ))}
 
               <button
                 onClick={() => setEditWorkout({ ...editWorkout, exercises: [...editWorkout.exercises, { name: '', sets: 3, reps: '12', weight: '', rest: '60s', muscleGroup: 'Geral', videoUrl: '' }] })}
-                className="w-full py-4 border-2 border-dashed border-indigo-200 rounded-3xl text-indigo-400 font-bold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2"
+                className="w-full py-5 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-400 font-bold hover:bg-indigo-50 hover:border-indigo-300 transition-all flex items-center justify-center gap-2 uppercase tracking-wide text-xs"
               >
-                <PlusCircle size={20} /> Adicionar Exercício
+                <PlusCircle size={18} /> Adicionar Novo Exercício
               </button>
             </div>
           </div>
@@ -592,30 +655,56 @@ const WorkoutView: React.FC = () => {
               {selectedWorkout.exercises.map((ex: any, i: number) => (
                 <div key={i} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                   <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="h-10 w-10 shrink-0 rounded-xl bg-slate-50 flex items-center justify-center text-xs font-black text-indigo-600 border border-slate-100">{i + 1}</div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-slate-800 text-sm truncate">{ex.name}</h4>
-                            {ex.videoUrl && (
-                              <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="text-indigo-600 hover:scale-110 transition-transform">
-                                <PlayCircle size={14} />
-                              </button>
-                            )}
+                    {/* Left: Number & Icon */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className="h-12 w-12 shrink-0 rounded-2xl bg-indigo-50 flex items-center justify-center text-sm font-black text-indigo-600 border border-indigo-100 shadow-sm">
+                        {i + 1}
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-2">
+                        {/* Title & Video */}
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-800 text-base truncate">{ex.name}</h4>
+                          {ex.videoUrl && (
+                            <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="text-indigo-600 hover:scale-110 transition-transform bg-indigo-50 rounded-full p-1">
+                              <PlayCircle size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Stats Badge Row */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {ex.muscleGroup && <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 uppercase tracking-wide">{ex.muscleGroup}</span>}
+
+                          {/* Rest */}
+                          <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                            <Clock size={12} className="text-slate-400" />
+                            <span className="text-[10px] font-bold text-slate-600">{ex.rest || '60s'}</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-full">{ex.muscleGroup}</span>
-                            {ex.weight && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Dumbbell size={10} /> {ex.weight}</span>}
-                            {ex.rest && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Clock size={10} /> {ex.rest}</span>}
-                          </div>
+
+                          {/* Weight Display - Now more prominent */}
+                          {ex.weight ? (
+                            <div className="flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
+                              <Dumbbell size={12} className="text-indigo-500" />
+                              <span className="text-[10px] font-black text-indigo-700">{ex.weight}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-dashed border-slate-200">
+                              <Dumbbell size={12} className="text-slate-300" />
+                              <span className="text-[10px] font-medium text-slate-400">Sem carga</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6 justify-between sm:justify-end border-t sm:border-t-0 pt-3 border-slate-50">
-                      <div className="text-right">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sets x Reps</p>
-                        <p className="text-sm font-black text-slate-800">{ex.sets} x {ex.reps}</p>
+
+                    {/* Right: Sets x Reps (Big & Bold) */}
+                    <div className="flex items-center justify-end pl-4 border-l border-slate-100 sm:border-l-0 sm:pl-0">
+                      <div className="text-right min-w-[80px]">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Sets x Reps</p>
+                        <div className="text-2xl font-black text-slate-800 tabular-nums leading-none">
+                          {ex.sets} <span className="text-indigo-400 text-lg">×</span> {ex.reps}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -659,7 +748,10 @@ const WorkoutView: React.FC = () => {
             <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm border-b-4 border-b-indigo-500">
               <div className="flex flex-col gap-6">
                 <div className="flex-1 space-y-5">
-                  <div className="flex items-center gap-2"><div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><Sparkles size={18} /></div><h3 className="font-bold text-slate-800">Parâmetros Inteligentes</h3></div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><Sparkles size={18} /></div>
+                    <h3 className="font-bold text-slate-800">Parâmetros Inteligentes</h3>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Objetivo Principal</label>
@@ -728,7 +820,11 @@ const WorkoutView: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h5 className="text-[11px] font-bold text-slate-800 truncate">{ex.name}</h5>
-                            {ex.videoUrl && <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="text-indigo-600 hover:scale-110 transition-transform"><PlayCircle size={14} /></button>}
+                            {ex.videoUrl && (
+                              <button onClick={() => setActiveVideoUrl(ex.videoUrl)} className="text-indigo-600 hover:scale-110 transition-transform bg-indigo-50 rounded-full p-0.5">
+                                <PlayCircle size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
                         <span className="text-[10px] font-black text-slate-800">{ex.sets}x{ex.reps}</span>
@@ -767,7 +863,8 @@ const WorkoutView: React.FC = () => {
                           reps: '10-12', // AI default
                           order_index: (dayIdx * 100) + exIdx, // Simple ordering to keep days separate visually
                           observation: `Dia: ${dayPlan.day} - Foco: ${dayPlan.focus}`,
-                          muscle_group: 'Geral' // Default for AI exercises since we don't strictly categorize them yet
+                          muscle_group: 'Geral', // Default for AI exercises since we don't strictly categorize them yet
+                          video_url: ex.videoUrl // Save AI generated video URL
                         }))
                       );
 
@@ -822,23 +919,35 @@ const WorkoutView: React.FC = () => {
                 <div key={i} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 space-y-4 relative group">
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1">
-                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Exercício</label>
-                      <select className="w-full bg-white rounded-xl border border-slate-200 px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-100" value={ex.name} onChange={(e) => {
-                        const updated = [...manualWorkout.exercises];
-                        const selectedName = e.target.value;
-                        updated[i].name = selectedName;
-                        if (EXERCISE_VIDEO_LIBRARY[selectedName]) {
-                          updated[i].videoUrl = EXERCISE_VIDEO_LIBRARY[selectedName];
-                        }
-                        setManualWorkout({ ...manualWorkout, exercises: updated });
-                      }}>
-                        <option value="">Selecione um exercício...</option>
-                        {PREDEFINED_EXERCISES.map(cat => (
-                          <optgroup key={cat.category} label={cat.category}>
-                            {cat.items.map(item => <option key={item} value={item}>{item}</option>)}
-                          </optgroup>
-                        ))}
-                      </select>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Exercício {i + 1}</label>
+                      <div className="relative">
+                        <input
+                          list={`exercises-list-manual-${i}`}
+                          type="text"
+                          value={ex.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = [...manualWorkout.exercises];
+                            updated[i].name = val;
+
+                            // Auto-fill from library if match found
+                            const match = exerciseLibrary.find(lib => lib.name === val);
+                            if (match) {
+                              if (!updated[i].muscleGroup || updated[i].muscleGroup === 'Geral') updated[i].muscleGroup = match.muscle_group;
+                              if (!updated[i].videoUrl) updated[i].videoUrl = match.video_url;
+                            }
+
+                            setManualWorkout({ ...manualWorkout, exercises: updated });
+                          }}
+                          placeholder="Digite ou selecione..."
+                          className="w-full bg-white rounded-xl border border-slate-200 px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-100 placeholder:font-normal placeholder:text-slate-400"
+                        />
+                        <datalist id={`exercises-list-manual-${i}`}>
+                          {exerciseLibrary.map((lib) => (
+                            <option key={lib.id} value={lib.name} />
+                          ))}
+                        </datalist>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:w-[400px]">
@@ -917,6 +1026,7 @@ const WorkoutView: React.FC = () => {
                     load: ex.weight,
                     rest: ex.rest,
                     muscle_group: ex.muscleGroup || 'Geral', // Added muscle_group
+                    video_url: ex.videoUrl, // Added video_url persistence
                     order_index: index
                   }));
 

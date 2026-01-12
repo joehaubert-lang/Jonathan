@@ -1,12 +1,18 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "dummy_key" });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.error("VITE_GEMINI_API_KEY is not defined in .env file");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || "dummy_key" });
 
 export const analyzePosture = async (imageBase64: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: {
         parts: [
           { text: "Analise esta foto de avaliação física. Identifique desvios posturais nos seguintes pontos: Cabeça, Ombros, Pelve, Joelhos e Pés. Retorne um laudo técnico estruturado em JSON com os campos 'deviations' (lista de strings), 'alignmentScore' (0-100) e 'recommendation' (texto curto)." },
@@ -40,7 +46,7 @@ export const analyzePosture = async (imageBase64: string) => {
 export const generateWorkoutSplit = async (studentGoal: string, level: string, daysPerWeek: number) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: `Gere um plano de treino semanal para um aluno com o objetivo de ${studentGoal}, nível ${level}, treinando ${daysPerWeek} vezes por semana. Para cada exercício, tente incluir uma URL real do YouTube com a demonstração da execução no campo 'videoUrl'. Retorne os exercícios em formato estruturado.`,
       config: {
         responseMimeType: "application/json",
@@ -73,7 +79,13 @@ export const generateWorkoutSplit = async (studentGoal: string, level: string, d
       }
     });
 
-    return JSON.parse(response.text || '[]');
+    const text = response.text || '[]';
+    console.log("Raw Gemini Response:", text);
+
+    // Remove markdown code blocks if present
+    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    return JSON.parse(cleanText);
   } catch (error) {
     console.error("Erro ao gerar treino com Gemini:", error);
     return [];
@@ -83,7 +95,7 @@ export const generateWorkoutSplit = async (studentGoal: string, level: string, d
 export const generateReminderMessage = async (studentName: string, amount: string, dueDate: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: `Gere uma mensagem curta, amigável e profissional para ser enviada via WhatsApp para o aluno ${studentName}. Informe que o pagamento de ${amount} vence no dia ${dueDate} e que estamos à disposição para dúvidas. Use um tom de coach motivador.`,
     });
     return response.text;
