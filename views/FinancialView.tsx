@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ConfirmationModal from '../components/ConfirmationModal';
 import { DollarSign, ArrowUpRight, ArrowDownRight, CreditCard, Download, Filter, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, Settings, Mail, MessageSquare, Bell, Sparkles, Send, CheckCircle2, Plus, X, Trash2 } from 'lucide-react';
 import { generateReminderMessage } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
@@ -22,6 +23,14 @@ const FinancialView: React.FC = () => {
   const [isAutomationEnabled, setIsAutomationEnabled] = useState(true);
   const [isGeneratingMsg, setIsGeneratingMsg] = useState<string | null>(null);
   const [aiMessage, setAiMessage] = useState<string | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: 'danger' | 'warning' | 'success';
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => { }, type: 'warning' });
 
   // Supabase State
   const [transactions, setTransactions] = useState<FinancialRecord[]>([]);
@@ -86,32 +95,42 @@ const FinancialView: React.FC = () => {
     }
   };
 
-  const toggleStatus = async (id: string, currentStatus: string) => {
+  const toggleStatus = (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
     const statusLabel = newStatus === 'paid' ? 'Paga' : 'Pendente';
 
-    if (!window.confirm(`Deseja alterar o status para "${statusLabel}"?`)) return;
-
-    const { error } = await supabase.from('financial_records').update({ status: newStatus }).eq('id', id);
-
-    if (error) {
-      console.error('Error updating status:', error);
-    } else {
-      fetchRecords(); // Refresh to update UI totals
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Alterar Status',
+      message: `Deseja realmente marcar esta transação como "${statusLabel}"?`,
+      type: newStatus === 'paid' ? 'success' : 'warning',
+      onConfirm: async () => {
+        const { error } = await supabase.from('financial_records').update({ status: newStatus }).eq('id', id);
+        if (error) {
+          console.error('Error updating status:', error);
+        } else {
+          fetchRecords();
+        }
+      }
+    });
   };
 
-  const deleteTransaction = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este lançamento?')) return;
-
-    const { error } = await supabase.from('financial_records').delete().eq('id', id);
-
-    if (error) {
-      console.error('Error deleting transaction:', error);
-      alert('Erro ao excluir.');
-    } else {
-      fetchRecords();
-    }
+  const deleteTransaction = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Excluir Transação',
+      message: 'Tem certeza que deseja excluir este lançamento? Essa ação não pode ser desfeita.',
+      type: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('financial_records').delete().eq('id', id);
+        if (error) {
+          console.error('Error deleting transaction:', error);
+          alert('Erro ao excluir.');
+        } else {
+          fetchRecords();
+        }
+      }
+    });
   };
 
   const handleGenerateAI = async (studentName: string, amount: number, date: string) => {
@@ -338,7 +357,6 @@ const FinancialView: React.FC = () => {
         </div>
       )}
 
-      {/* AI Message Preview Modal */}
       {aiMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
@@ -373,6 +391,15 @@ const FinancialView: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+      />
     </div>
   );
 };

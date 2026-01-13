@@ -193,9 +193,86 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
 
     }, [formData.age, formData.chest, formData.abdomen, formData.thigh, formData.triceps, formData.suprailiac, protocol, gender]);
 
+    // Pollock 7 Calculation
+    useEffect(() => {
+        if (protocol !== 'pollock7') return;
+
+        const parseValue = (val: string) => {
+            if (!val) return NaN;
+            return parseFloat(val.replace(',', '.'));
+        };
+
+        const age = parseValue(formData.age);
+        if (isNaN(age) || age <= 0) {
+            setFormData(prev => ({ ...prev, bf: '' }));
+            return;
+        }
+
+        // 7 Folds: Chest, Axillary, Triceps, Subscapular, Abdomen, Suprailiac, Thigh
+        const chest = parseValue(formData.chest);
+        const axillary = parseValue(formData.axillary);
+        const triceps = parseValue(formData.triceps);
+        const subscapular = parseValue(formData.subscapular);
+        const abdomen = parseValue(formData.abdomen);
+        const suprailiac = parseValue(formData.suprailiac);
+        const thigh = parseValue(formData.thigh);
+
+        if (
+            !isNaN(chest) && !isNaN(axillary) && !isNaN(triceps) &&
+            !isNaN(subscapular) && !isNaN(abdomen) && !isNaN(suprailiac) && !isNaN(thigh)
+        ) {
+            const sum = chest + axillary + triceps + subscapular + abdomen + suprailiac + thigh;
+            let density = 0;
+
+            // Same density formula structure for men and women, but different result interpretation if needed? 
+            // WAIT - User provided spec says "Density formula is the same for men and women".
+            // "1.112 - (0.00043499 * sum) + (0.00000055 * sum^2) - (0.00028826 * age)"
+
+            density = 1.112 - (0.00043499 * sum) + (0.00000055 * (sum * sum)) - (0.00028826 * age);
+
+            if (density > 0) {
+                // Siri Equation: (495 / Density) - 450
+                const bf = (495 / density) - 450;
+                setFormData(prev => ({ ...prev, bf: bf > 0 ? bf.toFixed(1) : '' }));
+            } else {
+                setFormData(prev => ({ ...prev, bf: '' }));
+            }
+        } else {
+            setFormData(prev => ({ ...prev, bf: '' }));
+        }
+
+    }, [
+        formData.age, formData.chest, formData.axillary, formData.triceps,
+        formData.subscapular, formData.abdomen, formData.suprailiac, formData.thigh,
+        protocol
+    ]);
+
     if (!isOpen) return null;
 
     const handleNext = () => {
+        // Validation for Step 2 (Measurements)
+        if (step === 2) {
+            if (!formData.weight || !formData.height) return alert("Por favor, preencha Peso e Altura.");
+
+            if (protocol === 'pollock3') {
+                if (!formData.age) return alert("Idade é obrigatória.");
+                if (gender === 'masculino') {
+                    if (!formData.chest || !formData.abdomen || !formData.thigh) return alert("Preencha todas as dobras (Peitoral, Abd, Coxa).");
+                } else {
+                    if (!formData.triceps || !formData.suprailiac || !formData.thigh) return alert("Preencha todas as dobras (Tríceps, Supra, Coxa).");
+                }
+            }
+            if (protocol === 'pollock7') {
+                if (!formData.age) return alert("Idade é obrigatória.");
+                if (!formData.chest || !formData.axillary || !formData.triceps || !formData.subscapular || !formData.abdomen || !formData.suprailiac || !formData.thigh) {
+                    return alert("Preencha todas as 7 dobras.");
+                }
+            }
+            if (protocol === 'bioimpedance') {
+                if (!formData.bf || !formData.muscleMass) return alert("Preencha % Gordura e Massa Muscular.");
+            }
+        }
+
         if (step < 5) setStep((prev) => (prev + 1) as SetupStep);
     };
 
@@ -254,7 +331,11 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                     `}>
                                         {step > s.num ? <CheckCircle2 size={12} /> : s.num}
                                     </div>
-                                    <span className="">{s.label}</span>
+                                    <div className="flex flex-col text-left">
+                                        <span className="">{s.label}</span>
+                                        {s.num === 2 && <span className="text-[9px] font-normal uppercase tracking-wider opacity-70">Obrigatório</span>}
+                                        {s.num === 3 && <span className="text-[9px] font-normal uppercase tracking-wider opacity-70">Opcional</span>}
+                                    </div>
                                 </button>
                                 {s.num < steps.length && (
                                     <div className={`hidden sm:block w-8 h-[2px] mx-1 rounded-full ${step > s.num ? 'bg-emerald-200' : 'bg-slate-100'}`}></div>
@@ -312,17 +393,17 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                 </button>
 
                                 <button
-                                    onClick={() => setProtocol('custom')}
-                                    className={`group flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${protocol === 'custom' ? 'border-indigo-500 bg-white ring-2 ring-indigo-50 shadow-indigo-100' : 'border-slate-200 bg-white hover:border-indigo-200'}`}
+                                    disabled
+                                    className="group flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-300 opacity-50 cursor-not-allowed border-slate-200 bg-slate-50 grayscale"
                                 >
-                                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors ${protocol === 'custom' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-800 group-hover:text-white'}`}>
+                                    <div className="h-12 w-12 rounded-xl flex items-center justify-center shrink-0 transition-colors bg-slate-200 text-slate-400">
                                         <Settings size={24} />
                                     </div>
                                     <div className="flex-1">
-                                        <h5 className="font-bold text-slate-800 group-hover:text-slate-900 transition-colors">Personalizado</h5>
-                                        <p className="text-xs text-slate-500 mt-1 leading-snug">Entrada livre de dados antropométricos.</p>
+                                        <h5 className="font-bold text-slate-400">Personalizado <span className="text-[10px] uppercase tracking-wider bg-slate-200 px-1.5 py-0.5 rounded text-slate-500 ml-1">Em Breve</span></h5>
+                                        <p className="text-xs text-slate-400 mt-1 leading-snug">Entrada livre de dados antropométricos.</p>
                                     </div>
-                                    <ChevronRight size={20} className={`text-slate-300 group-hover:text-slate-800 transition-colors ${protocol === 'custom' ? 'text-slate-800' : ''}`} />
+                                    <ChevronRight size={20} className="text-slate-300" />
                                 </button>
                             </div>
                         </div>
@@ -420,6 +501,16 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
 
                             {protocol === 'pollock7' && (
                                 <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 space-y-1">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">Idade (anos)</label>
+                                        <input
+                                            type="number"
+                                            value={formData.age}
+                                            onChange={e => setFormData({ ...formData, age: e.target.value })}
+                                            className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 font-bold text-slate-800"
+                                            placeholder="Necessário para cálculo"
+                                        />
+                                    </div>
                                     {['chest|Peitoral', 'axillary|Axilar Média', 'triceps|Tríceps', 'subscapular|Subescapular', 'abdomen|Abdominal', 'suprailiac|Supra-ilíaca', 'thigh|Coxa'].map(field => {
                                         const [key, label] = field.split('|');
                                         return (
@@ -429,6 +520,13 @@ const NewEvaluationWizard: React.FC<NewEvaluationWizardProps> = ({ isOpen, onClo
                                             </div>
                                         );
                                     })}
+                                    <div className="col-span-2 bg-purple-50 p-4 rounded-xl border border-purple-100 flex items-center justify-between mt-2">
+                                        <div>
+                                            <p className="text-xs font-bold text-purple-500 uppercase">Gordura Corporal (Estimada)</p>
+                                            <p className="text-xs text-purple-400">Pollock 7 Dobras</p>
+                                        </div>
+                                        <p className="text-2xl font-bold text-purple-700">{formData.bf || '--'}%</p>
+                                    </div>
                                 </div>
                             )}
 
