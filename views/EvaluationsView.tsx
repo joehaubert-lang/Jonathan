@@ -443,8 +443,9 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
   // --- Student Detail View ---
 
   // Prepare chart data
+  // Prepare chart data
   const evolutionData = evaluations.map(e => ({
-    date: new Date(e.created_at || e.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+    date: new Date(e.created_at || e.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     peso: e.weight,
     gordura: e.body_fat // Changed from fat_percentage
   })).reverse(); // Oldest to newest for chart
@@ -586,7 +587,7 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
                   const oldEval = sorted[0];
                   const newEval = sorted[1];
 
-                  const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
+                  const formatDate = (d: string) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
                   const renderDelta = (oldVal: number, newVal: number, inverse = false) => {
                     const delta = newVal - oldVal;
                     const isPositive = delta > 0;
@@ -608,68 +609,65 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
                   };
 
                   return (
-                    <div className="space-y-8">
+                    <div className="space-y-4 sm:space-y-8">
                       {/* Header Grid */}
-                      <div className="grid grid-cols-4 gap-4 text-center">
-                        <div className="col-start-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                          <p className="text-xs font-bold text-slate-400 uppercase">Anterior</p>
-                          <p className="font-bold text-lg text-slate-700">{formatDate(oldEval.date || oldEval.created_at)}</p>
+                      <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center items-end">
+                        <div className="col-start-2 bg-white p-2 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+                          <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">Anterior</p>
+                          <p className="font-bold text-[10px] sm:text-lg text-slate-700 leading-tight">{formatDate(oldEval.date || oldEval.created_at)}</p>
                         </div>
-                        <div className="bg-indigo-600 p-4 rounded-2xl shadow-lg shadow-indigo-200 text-white transform scale-105">
-                          <p className="text-xs font-bold text-indigo-200 uppercase">Atual</p>
-                          <p className="font-bold text-lg">{formatDate(newEval.date || newEval.created_at)}</p>
+                        <div className="bg-indigo-600 p-2 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-200 text-white transform sm:scale-105">
+                          <p className="text-[10px] sm:text-xs font-bold text-indigo-200 uppercase">Atual</p>
+                          <p className="font-bold text-[10px] sm:text-lg leading-tight">{formatDate(newEval.date || newEval.created_at)}</p>
                         </div>
-                        <div className="flex items-center justify-center font-bold text-slate-400 text-sm italic">
+                        <div className="flex items-center justify-center font-bold text-slate-400 text-[10px] sm:text-sm italic">
                           Diferença
                         </div>
                       </div>
 
                       {/* Main Metrics */}
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700">Composição Corporal</div>
+                        <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-sm sm:text-base">Composição Corporal</div>
                         <div className="divide-y divide-slate-100">
-                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
-                            <span className="font-medium text-slate-600">Peso (kg)</span>
-                            <span className="text-center font-medium opacity-60">{oldEval.weight}</span>
-                            <span className="text-center font-bold text-slate-800">{newEval.weight}</span>
-                            <div className="flex justify-center">{renderDelta(oldEval.weight, newEval.weight, true)}</div> {/* Usually logic: weight neutral? Let's assume inverse for now or neutral. Actually weight loss is standard goal */}
+                          <div className="grid grid-cols-4 gap-1 sm:gap-4 p-2 sm:p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600 text-xs sm:text-base truncate">Peso (kg)</span>
+                            <span className="text-center font-medium opacity-60 text-xs sm:text-base">{oldEval.weight}</span>
+                            <span className="text-center font-bold text-slate-800 text-xs sm:text-base">{newEval.weight}</span>
+                            <div className="flex justify-center scale-90 sm:scale-100">{renderDelta(oldEval.weight, newEval.weight, true)}</div>
                           </div>
-                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
-                            <span className="font-medium text-slate-600">Gordura Corporal (%)</span>
-                            <span className="text-center font-medium opacity-60">{oldEval.body_fat || '-'}</span>
-                            <span className="text-center font-bold text-slate-800">{newEval.body_fat || '-'}</span>
-                            <div className="flex justify-center">{renderDelta(oldEval.body_fat || 0, newEval.body_fat || 0, true)}</div>
+                          <div className="grid grid-cols-4 gap-1 sm:gap-4 p-2 sm:p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600 text-xs sm:text-base truncate" title="Gordura Corporal (%)">Gordura (%)</span>
+                            <span className="text-center font-medium opacity-60 text-xs sm:text-base">{oldEval.body_fat || '-'}</span>
+                            <span className="text-center font-bold text-slate-800 text-xs sm:text-base">{newEval.body_fat || '-'}</span>
+                            <div className="flex justify-center scale-90 sm:scale-100">{renderDelta(oldEval.body_fat || 0, newEval.body_fat || 0, true)}</div>
                           </div>
-                          <div className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
-                            <span className="font-medium text-slate-600">Massa Muscular (kg)</span>
-                            <span className="text-center font-medium opacity-60">{oldEval.measurements?.muscle_mass || '-'}</span>
-                            <span className="text-center font-bold text-slate-800">{newEval.measurements?.muscle_mass || '-'}</span>
-                            <div className="flex justify-center">{renderDelta(oldEval.measurements?.muscle_mass || 0, newEval.measurements?.muscle_mass || 0, false)}</div>
+                          <div className="grid grid-cols-4 gap-1 sm:gap-4 p-2 sm:p-4 items-center hover:bg-slate-50/50">
+                            <span className="font-medium text-slate-600 text-xs sm:text-base truncate" title="Massa Muscular (kg)">Massa (kg)</span>
+                            <span className="text-center font-medium opacity-60 text-xs sm:text-base">{oldEval.measurements?.muscle_mass || '-'}</span>
+                            <span className="text-center font-bold text-slate-800 text-xs sm:text-base">{newEval.measurements?.muscle_mass || '-'}</span>
+                            <div className="flex justify-center scale-90 sm:scale-100">{renderDelta(oldEval.measurements?.muscle_mass || 0, newEval.measurements?.muscle_mass || 0, false)}</div>
                           </div>
                         </div>
                       </div>
 
                       {/* Measurements */}
                       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700">Perímetros (cm)</div>
+                        <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-sm sm:text-base">Perímetros (cm)</div>
                         <div className="divide-y divide-slate-100">
                           {['chestCirc', 'waist', 'abdomenCirc', 'hip', 'rightArm', 'leftArm', 'rightThigh', 'leftThigh'].map(key => {
-                            const labelMap: any = { chestCirc: 'Peitoral', waist: 'Cintura', abdomenCirc: 'Abdômen', hip: 'Quadril', rightArm: 'Braço Dir.', leftArm: 'Braço Esq.', rightThigh: 'Coxa Dir.', leftThigh: 'Coxa Esq.' };
+                            const labelMap: any = { chestCirc: 'Peitoral', waist: 'Cintura', abdomenCirc: 'Abdômen', hip: 'Quadril', rightArm: 'Braço D.', leftArm: 'Braço E.', rightThigh: 'Coxa D.', leftThigh: 'Coxa E.' };
                             const v1 = parseFloat(oldEval.measurements?.[key] || 0);
                             const v2 = parseFloat(newEval.measurements?.[key] || 0);
                             if (!v1 && !v2) return null;
 
-                            // For Waist/Abdomen, decrease is good. For Arms/Thighs, increase usually muscle. 
-                            // Simplify: just show delta. Let user interpret context. 
-                            // Or: Waist/Abd = inverse. Others = standard.
                             const isInverse = ['waist', 'abdomenCirc'].includes(key);
 
                             return (
-                              <div key={key} className="grid grid-cols-4 gap-4 p-4 items-center hover:bg-slate-50/50">
-                                <span className="font-medium text-slate-600">{labelMap[key] || key}</span>
-                                <span className="text-center font-medium opacity-60">{v1 || '-'}</span>
-                                <span className="text-center font-bold text-slate-800">{v2 || '-'}</span>
-                                <div className="flex justify-center">{renderDelta(v1, v2, isInverse)}</div>
+                              <div key={key} className="grid grid-cols-4 gap-1 sm:gap-4 p-2 sm:p-4 items-center hover:bg-slate-50/50">
+                                <span className="font-medium text-slate-600 text-xs sm:text-base truncate">{labelMap[key] || key}</span>
+                                <span className="text-center font-medium opacity-60 text-xs sm:text-base">{v1 || '-'}</span>
+                                <span className="text-center font-bold text-slate-800 text-xs sm:text-base">{v2 || '-'}</span>
+                                <div className="flex justify-center scale-90 sm:scale-100">{renderDelta(v1, v2, isInverse)}</div>
                               </div>
                             );
                           })}
@@ -697,13 +695,13 @@ const EvaluationsView: React.FC<EvaluationsViewProps> = ({ initialStudentId }) =
             <div className="h-64 w-full">
               {evolutionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={evolutionData}>
+                  <AreaChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} /><stop offset="95%" stopColor="#4f46e5" stopOpacity={0} /></linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tickMargin={12} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} domain={['dataMin - 5', 'dataMax + 5']} tick={{ fontSize: 12, fill: '#64748b' }} />
                     <Tooltip />
                     <Area type="monotone" dataKey="peso" stroke="#4f46e5" strokeWidth={3} fill="url(#colorPeso)" />
                   </AreaChart>

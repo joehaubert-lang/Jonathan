@@ -2,15 +2,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Users, Dumbbell, ClipboardCheck, Wallet, Menu, Bell, X, Check, Trash2, CreditCard, Activity, ClipboardList, Zap } from 'lucide-react';
 import { Notification } from '../types';
+import TrainerProfileModal from './TrainerProfileModal';
+import { supabase } from '../services/supabaseClient';
 
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  trainer: any;
+  onTrainerUpdate: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, trainer, onTrainerUpdate }) => {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '0',
@@ -179,13 +184,24 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             </div>
           )}
 
-          <img
-            src="https://picsum.photos/id/64/100/100"
-            alt="Profile"
-            className="h-9 w-9 rounded-full border border-slate-200"
-          />
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="h-9 w-9 rounded-full border border-slate-200 overflow-hidden hover:ring-2 hover:ring-indigo-100 transition-all focus:outline-none"
+          >
+            <img
+              src={trainer?.photo || "https://picsum.photos/id/64/100/100"}
+              alt="Profile"
+              className="h-full w-full object-cover"
+            />
+          </button>
         </div>
       </header>
+
+      <TrainerProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSaveSuccess={onTrainerUpdate}
+      />
 
       {/* Desktop Sidebar */}
       <aside className="fixed left-0 top-0 hidden h-full w-64 flex-col border-r bg-white md:flex">

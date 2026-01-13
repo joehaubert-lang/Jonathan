@@ -5,7 +5,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { supabase } from '../services/supabaseClient';
 import { Notification } from '../types';
 
-const DashboardView: React.FC = () => {
+interface DashboardViewProps {
+  trainer: any;
+}
+
+const DashboardView: React.FC<DashboardViewProps> = ({ trainer }) => {
   const [stats, setStats] = useState({
     activeStudents: 0,
     createdWorkouts: 0,
@@ -17,8 +21,9 @@ const DashboardView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('DashboardView trainer prop:', trainer);
     fetchDashboardData();
-  }, []);
+  }, [trainer]);
 
   const fetchDashboardData = async () => {
     try {
@@ -94,7 +99,6 @@ const DashboardView: React.FC = () => {
       setChartData(processedChartData);
 
       // 3. Fetch Notifications
-      // Mock notifications if DB is empty for better UI experience initially, or fetch real
       const { data: notifsData } = await supabase
         .from('notifications')
         .select('*')
@@ -102,10 +106,8 @@ const DashboardView: React.FC = () => {
         .limit(4);
 
       if (notifsData && notifsData.length > 0) {
-        // Map to match UI expected format if needed, but we can adapt UI to type
         setNotifications(notifsData as any);
       } else {
-        // Fallback mock if empty so dashboard isn't ugly blank
         setNotifications([]);
       }
 
@@ -119,7 +121,14 @@ const DashboardView: React.FC = () => {
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="text-2xl font-bold text-slate-800">Olá, Treinador! 👋</h2>
+        <h2 className="text-2xl font-bold text-slate-800">
+          Olá, {(() => {
+            console.log('Rendering Dashboard Greeting with trainer:', trainer);
+            if (!trainer) return 'Carregando...';
+            if (!trainer.name) return 'Treinador';
+            return trainer.name;
+          })()}! 👋
+        </h2>
         <p className="text-slate-500">Bem-vindo ao painel do FitFlow.</p>
       </header>
 

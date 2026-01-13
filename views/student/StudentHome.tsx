@@ -1,25 +1,28 @@
 
 import React from 'react';
-import { Dumbbell, ClipboardCheck, Wallet, Flame, TrendingUp, FileText, ChevronRight } from 'lucide-react';
+import { Dumbbell, ClipboardCheck, Wallet, Flame, TrendingUp, FileText, ChevronRight, AlertCircle } from 'lucide-react';
 
 interface StudentHomeProps {
+    student: any;
     onNavigate: (view: string) => void;
+    onOpenProfile: () => void;
+    hasFinancialAlert?: boolean;
 }
 
-const StudentHome: React.FC<StudentHomeProps> = ({ onNavigate }) => {
+const StudentHome: React.FC<StudentHomeProps> = ({ student, onNavigate, onOpenProfile, hasFinancialAlert }) => {
     const menuItems = [
         { id: 'workouts', label: 'Treinos', icon: Dumbbell, color: 'bg-indigo-50 text-indigo-600', border: 'hover:border-indigo-200' },
         { id: 'evaluations', label: 'Avaliações', icon: ClipboardCheck, color: 'bg-blue-50 text-blue-600', border: 'hover:border-blue-200' },
-        { id: 'financial', label: 'Faturas', icon: Wallet, color: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-200' },
+        { id: 'financial', label: 'Faturas', icon: Wallet, color: 'bg-emerald-50 text-emerald-600', border: 'hover:border-emerald-200', hasAlert: hasFinancialAlert },
         { id: 'extra', label: 'Treinos Extras', icon: Flame, color: 'bg-orange-50 text-orange-600', border: 'hover:border-orange-200' },
         { id: 'progress', label: 'Meu Progresso', icon: TrendingUp, color: 'bg-purple-50 text-purple-600', border: 'hover:border-purple-200' },
         { id: 'files', label: 'Arquivos', icon: FileText, color: 'bg-slate-50 text-slate-600', border: 'hover:border-slate-200' },
     ];
 
     return (
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header>
-                <h1 className="text-2xl font-bold text-slate-800">Olá, Aluno! 👋</h1>
+                <h1 className="text-2xl font-bold text-slate-800">Olá, {student?.name.split(' ')[0]}! 👋</h1>
                 <p className="text-slate-500">Vamos treinar hoje?</p>
             </header>
 
@@ -28,8 +31,15 @@ const StudentHome: React.FC<StudentHomeProps> = ({ onNavigate }) => {
                     <button
                         key={item.id}
                         onClick={() => onNavigate(item.id)}
-                        className={`flex flex-col items-center justify-center p-6 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all ${item.border} hover:shadow-md hover:-translate-y-1`}
+                        className={`relative flex flex-col items-center justify-center p-6 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all ${item.border} hover:shadow-md hover:-translate-y-1`}
                     >
+                        {item.hasAlert && (
+                            <div className="absolute top-3 right-3 text-red-500">
+                                <AlertCircle size={22} fill="currentColor" className="text-white relative z-10 shadow-lg" />
+                                <div className="absolute inset-0 bg-red-500 rounded-full opacity-40 animate-ping"></div>
+                                <div className="absolute inset-0 bg-red-500 rounded-full opacity-20 animate-ping [animation-delay:0.5s]"></div>
+                            </div>
+                        )}
                         <div className={`h-12 w-12 rounded-full mb-3 flex items-center justify-center ${item.color}`}>
                             <item.icon size={24} />
                         </div>
