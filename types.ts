@@ -1,4 +1,5 @@
 
+// Consolidated interfaces
 export interface Student {
   id: string;
   name: string;
@@ -9,13 +10,29 @@ export interface Student {
   goal: string;
   plan: 'Mensal' | 'Trimestral' | 'Anual';
   phone: string;
-  birth_date?: string; // Format: YYYY-MM-DD
+  birth_date?: string;
   gender?: 'masculino' | 'feminino';
+}
+
+export interface Exercise {
+  id: string;
+  workout_id?: string;
+  name: string;
+  muscleGroup?: string;
+  sets?: number;
+  reps?: string;
+  load?: string;
+  rest?: string;
+  observation?: string;
+  order_index?: number;
+  videoUrl?: string;
+  weight?: string;
 }
 
 export interface Workout {
   id: string;
-  student_id: string;
+  student_id: string; // Keeping snake_case context from first def
+  studentId?: string; // Adding camelCase for compatibility
   name: string;
   goal?: string;
   frequency?: string;
@@ -24,37 +41,7 @@ export interface Workout {
   active: boolean;
   exercises?: Exercise[];
   created_at?: string;
-}
-
-export interface Exercise {
-  id: string;
-  workout_id: string;
-  name: string;
-  sets?: number;
-  reps?: string;
-  load?: string;
-  rest?: string;
-  observation?: string;
-  order_index?: number;
-}
-
-export interface Exercise {
-  id: string;
-  name: string;
-  muscleGroup: string;
-  sets: number;
-  reps: string;
-  rest: string;
-  videoUrl?: string;
-  weight?: string;
-}
-
-export interface Workout {
-  id: string;
-  name: string;
-  studentId: string;
-  dateCreated: string;
-  exercises: Exercise[];
+  dateCreated?: string;
 }
 
 export interface Evaluation {

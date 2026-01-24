@@ -51,7 +51,7 @@ const StudentsView: React.FC<StudentsViewProps> = ({ onNavigateToEvaluations }) 
           goal: s.goal,
           plan: s.plan,
           phone: s.phone,
-          phone: s.phone,
+
           gender: s.gender,
           birth_date: s.birth_date
         }));

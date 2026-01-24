@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({ apiKey: apiKey });
 async function listModels() {
     try {
         console.log("Fetching available models...");
-        const response = await ai.models.list();
+        const response: any = await ai.models.list();
 
         // Log the keys to understand structure
         console.log("Response Keys:", Object.keys(response));
